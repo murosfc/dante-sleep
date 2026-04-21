@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Moon -->
+  <circle cx="100" cy="80" r="40" fill="#FFE135"/>
+  <circle cx="115" cy="75" r="40" fill="transparent"/>
+  
+  <!-- Stars -->
+  <circle cx="70" cy="40" r="3" fill="#333"/>
+  <circle cx="130" cy="45" r="2.5" fill="#333"/>
+  <circle cx="75" cy="25" r="2" fill="#333"/>
+  
+  <!-- Baby (simple representation) -->
+  <circle cx="100" cy="100" r="12" fill="#FFB6C1"/>
+  <circle cx="100" cy="88" r="8" fill="#FDBCB4"/>
+</svg>
