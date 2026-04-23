@@ -7,6 +7,7 @@ class SleepEntry {
   DateTime? slept;
   bool isDay;
   bool bottle;
+  DateTime? bottleTime;
   bool isExpanded;
 
   SleepEntry({
@@ -14,6 +15,7 @@ class SleepEntry {
     this.slept,
     this.isDay = true,
     this.bottle = false,
+    this.bottleTime,
     this.isExpanded = true,
   });
 
@@ -22,6 +24,7 @@ class SleepEntry {
     'slept': slept?.toIso8601String(),
     'isDay': isDay,
     'bottle': bottle,
+    'bottleTime': bottleTime?.toIso8601String(),
     'isExpanded': isExpanded,
   };
 
@@ -30,6 +33,7 @@ class SleepEntry {
     slept: json['slept'] != null ? DateTime.parse(json['slept']) : null,
     isDay: json['isDay'] ?? true,
     bottle: json['bottle'] ?? false,
+    bottleTime: json['bottleTime'] != null ? DateTime.parse(json['bottleTime']) : null,
     isExpanded: json['isExpanded'] ?? true,
   );
 
@@ -70,5 +74,14 @@ class SleepEntry {
       }
     }
     return '-';
+  }
+
+  String getFormattedBottleTime(Locale locale, bool is24Hour) {
+    if (bottleTime == null) return '';
+    String pattern = is24Hour ? 'HH:mm' : 'h:mm a';
+    return DateFormat(
+      pattern,
+      locale.languageCode == 'pt' ? 'pt_BR' : 'en',
+    ).format(bottleTime!);
   }
 }

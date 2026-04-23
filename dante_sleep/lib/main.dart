@@ -80,6 +80,11 @@ class MyApp extends StatelessWidget {
                     ? const Color(0x663C6BC8)
                     : const Color(0x66A387D4),
               ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: isDay ? const Color(0xFF2A6CE8) : const Color(0xFFDABBF8),
+                ),
+              ),
             ),
             locale: provider.locale,
             localizationsDelegates: const [

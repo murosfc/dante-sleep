@@ -210,6 +210,41 @@ class LocalizedStrings {
         : AppStrings.wakeUps;
   }
 
+  String get timesUnit {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.timesUnit
+        : AppStrings.timesUnit;
+  }
+
+  String get averageSleep {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.averageSleep
+        : AppStrings.averageSleep;
+  }
+
+  String get averageAwake {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.averageAwake
+        : AppStrings.averageAwake;
+  }
+
+  String get maxSleep {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.maxSleep
+        : AppStrings.maxSleep;
+  }
+
+  String get bottleTime {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.bottleTime
+        : AppStrings.bottleTime;
+  }
+
   String get noLastNightData {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'pt'
@@ -377,6 +412,7 @@ class LocalizedStrings {
         AppStringsPortuguese.csvHeaderSlept,
         AppStringsPortuguese.csvHeaderPeriod,
         AppStringsPortuguese.csvHeaderBottle,
+        AppStringsPortuguese.csvHeaderBottleTime,
       ];
     } else {
       return [
@@ -386,6 +422,7 @@ class LocalizedStrings {
         AppStrings.csvHeaderSlept,
         AppStrings.csvHeaderPeriod,
         AppStrings.csvHeaderBottle,
+        AppStrings.csvHeaderBottleTime,
       ];
     }
   }

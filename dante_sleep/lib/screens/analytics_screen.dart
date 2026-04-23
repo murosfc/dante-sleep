@@ -147,33 +147,68 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       ),
                     )
                   else
-                    Row(
+                    Column(
                       children: [
-                        Expanded(
-                          child: _buildSummaryMetric(
-                            strings.totalSlept,
-                            _formatHours(nightSummary.totalSleepHours),
-                            textColor,
-                            subtitleColor,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.totalSlept,
+                                _formatHours(nightSummary.totalSleepHours),
+                                textColor,
+                                subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.totalAwake,
+                                _formatHours(nightSummary.totalAwakeHours),
+                                textColor,
+                                subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.wakeUps,
+                                '${nightSummary.wakeCount} ${strings.timesUnit}',
+                                textColor,
+                                subtitleColor,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildSummaryMetric(
-                            strings.totalAwake,
-                            _formatHours(nightSummary.totalAwakeHours),
-                            textColor,
-                            subtitleColor,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildSummaryMetric(
-                            strings.wakeUps,
-                            nightSummary.wakeCount.toString(),
-                            textColor,
-                            subtitleColor,
-                          ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.averageSleep,
+                                _formatHours(nightSummary.avgSleepBlock),
+                                textColor,
+                                subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.averageAwake,
+                                _formatHours(nightSummary.avgAwakeBlock),
+                                textColor,
+                                subtitleColor,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.maxSleep,
+                                _formatHours(nightSummary.maxSleepBlock),
+                                textColor,
+                                subtitleColor,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -426,10 +461,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     double totalSleep = 0;
     double totalAwake = 0;
     int wakeCount = 0;
+    double maxSleepBlock = 0;
+    int sleepBlockCount = 0;
+    int awakeBlockCount = 0;
 
     for (final idx in indices) {
       final entry = entriesNewestFirst[idx];
-      totalSleep += _sleepHours(entry);
+      var sleepHrs = _sleepHours(entry);
+      if (sleepHrs > 0) {
+        totalSleep += sleepHrs;
+        sleepBlockCount++;
+        if (sleepHrs > maxSleepBlock) maxSleepBlock = sleepHrs;
+      }
+
       if (entry.wokeUp != null) {
         wakeCount++;
       }
@@ -439,15 +483,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           final diff = newer.slept!.difference(entry.wokeUp!);
           if (!diff.isNegative) {
             totalAwake += diff.inMinutes / 60;
+            awakeBlockCount++;
           }
         }
       }
     }
 
+    double avgSleep = sleepBlockCount > 0 ? totalSleep / sleepBlockCount : 0;
+    double avgAwake = awakeBlockCount > 0 ? totalAwake / awakeBlockCount : 0;
+
     return _NightSummary(
       totalSleepHours: totalSleep,
       totalAwakeHours: totalAwake,
       wakeCount: wakeCount,
+      maxSleepBlock: maxSleepBlock,
+      avgSleepBlock: avgSleep,
+      avgAwakeBlock: avgAwake,
     );
   }
 
@@ -463,10 +514,16 @@ class _NightSummary {
   final double totalSleepHours;
   final double totalAwakeHours;
   final int wakeCount;
+  final double maxSleepBlock;
+  final double avgSleepBlock;
+  final double avgAwakeBlock;
 
   _NightSummary({
     required this.totalSleepHours,
     required this.totalAwakeHours,
     required this.wakeCount,
+    required this.maxSleepBlock,
+    required this.avgSleepBlock,
+    required this.avgAwakeBlock,
   });
 }

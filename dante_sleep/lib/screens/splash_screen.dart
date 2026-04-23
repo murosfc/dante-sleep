@@ -36,46 +36,9 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0x33281A44),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0x66C7B0FF)),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: const [
-                    Icon(
-                      Icons.nightlight_round,
-                      size: 100,
-                      color: Color(0xFFE3D5FF),
-                    ),
-                    Positioned(
-                      top: 10,
-                      child: Icon(Icons.star, size: 20, color: Color(0xFFF6EEFF)),
-                    ),
-                    Positioned(
-                      bottom: 10,
-                      left: 20,
-                      child: Icon(Icons.star, size: 15, color: Color(0xFFEADFFF)),
-                    ),
-                    Positioned(
-                      bottom: 10,
-                      right: 20,
-                      child: Icon(Icons.star, size: 15, color: Color(0xFFEADFFF)),
-                    ),
-                    Positioned(
-                      top: 30,
-                      right: 10,
-                      child: Icon(
-                        Icons.child_care,
-                        size: 30,
-                        color: Color(0xFFF6EEFF),
-                      ),
-                    ),
-                  ],
-                ),
+              Image.asset(
+                'assets/images/logo-full.png',
+                height: 150,
               ),
               const SizedBox(height: 22),
               Text(

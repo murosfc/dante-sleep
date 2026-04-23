@@ -12,7 +12,15 @@ import '../models/entry.dart';
 
 class AppProvider with ChangeNotifier {
   List<SleepEntry> entries = [];
-  bool isDormiu = true;
+
+  bool get isDormiu {
+    if (entries.isEmpty) return true;
+    final latest = entries[0];
+    if (latest.slept != null && latest.wokeUp == null) {
+      return false;
+    }
+    return true;
+  }
   bool isDay = true;
   bool is24Hour = true;
   bool isTableView = false;
@@ -64,7 +72,6 @@ class AppProvider with ChangeNotifier {
         entries[0].wokeUp = DateTime.now();
       }
     }
-    isDormiu = !isDormiu;
     notifyListeners();
     saveData();
   }
@@ -72,6 +79,17 @@ class AppProvider with ChangeNotifier {
   void toggleBottle() {
     if (entries.isNotEmpty) {
       entries[0].bottle = !entries[0].bottle;
+      notifyListeners();
+      saveData();
+    }
+  }
+
+  void editBottleTime(int index, DateTime? newTime) {
+    if (index >= 0 && index < entries.length) {
+      entries[index].bottleTime = newTime;
+      if (newTime != null) {
+        entries[index].bottle = true;
+      }
       notifyListeners();
       saveData();
     }
@@ -154,13 +172,22 @@ class AppProvider with ChangeNotifier {
     ];
     for (int i = 0; i < entries.length; i++) {
       SleepEntry e = entries[i];
+      String wokeUpStr = '';
+      if (e.wokeUp != null) {
+        wokeUpStr = DateFormat(is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a', locale.languageCode == 'pt' ? 'pt_BR' : 'en').format(e.wokeUp!);
+      }
+      String sleptStr = '';
+      if (e.slept != null) {
+        sleptStr = DateFormat(is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a', locale.languageCode == 'pt' ? 'pt_BR' : 'en').format(e.slept!);
+      }
       rows.add([
         e.getSleepTime(entries, i),
         e.getAwakeTime(entries, i),
-        e.getFormattedWokeUp(locale, is24Hour),
-        e.getFormattedSlept(locale, is24Hour),
+        wokeUpStr.isNotEmpty ? wokeUpStr : e.getFormattedWokeUp(locale, is24Hour),
+        sleptStr.isNotEmpty ? sleptStr : e.getFormattedSlept(locale, is24Hour),
         e.isDay ? dayValue : nightValue,
-        e.bottle.toString(),
+        e.bottle ? (locale.languageCode == 'pt' ? 'Sim' : 'Yes') : (locale.languageCode == 'pt' ? 'Não' : 'No'),
+        e.getFormattedBottleTime(locale, is24Hour),
       ]);
     }
     String csv = const ListToCsvConverter().convert(rows);
@@ -227,8 +254,9 @@ class AppProvider with ChangeNotifier {
             bool isDay = true;
             bool bottle = false;
 
-            // Try to parse dates from columns
-            // Expected format: Sleep Time, Awake Time, Woke Up, Slept, Period, Bottle
+            DateTime? bottleTime;
+
+            // Expected format: Sleep Time, Awake Time, Woke Up, Slept, Period, Bottle, Bottle Time
             if (row.length > 3 && row[3].toString().isNotEmpty) {
               slept = _parseDateTime(row[3].toString());
             }
@@ -236,10 +264,14 @@ class AppProvider with ChangeNotifier {
               wokeUp = _parseDateTime(row[2].toString());
             }
             if (row.length > 4 && row[4].toString().isNotEmpty) {
-              isDay = row[4].toString().toLowerCase().contains('day');
+              isDay = row[4].toString().toLowerCase().contains('day') || row[4].toString().toLowerCase().contains('dia');
             }
             if (row.length > 5 && row[5].toString().isNotEmpty) {
-              bottle = row[5].toString().toLowerCase() == 'true';
+              String b = row[5].toString().toLowerCase();
+              bottle = b == 'true' || b == 'yes' || b == 'sim';
+            }
+            if (row.length > 6 && row[6].toString().isNotEmpty) {
+              bottleTime = _parseDateTime(row[6].toString());
             }
 
             if (slept != null || wokeUp != null) {
@@ -249,6 +281,7 @@ class AppProvider with ChangeNotifier {
                   wokeUp: wokeUp,
                   isDay: isDay,
                   bottle: bottle,
+                  bottleTime: bottleTime,
                 ),
               );
             }
@@ -293,10 +326,18 @@ class AppProvider with ChangeNotifier {
 
       for (String format in formats) {
         try {
-          return DateFormat(format, 'pt_BR').parse(dateStr);
+          DateTime parsed = DateFormat(format, 'pt_BR').parse(dateStr);
+          if (!format.contains('yyyy') && !format.contains('yy')) {
+            parsed = DateTime(DateTime.now().year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second);
+          }
+          return parsed;
         } catch (_) {
           try {
-            return DateFormat(format, 'en').parse(dateStr);
+            DateTime parsed = DateFormat(format, 'en').parse(dateStr);
+            if (!format.contains('yyyy') && !format.contains('yy')) {
+              parsed = DateTime(DateTime.now().year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second);
+            }
+            return parsed;
           } catch (_) {
             continue;
           }

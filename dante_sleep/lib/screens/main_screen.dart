@@ -73,10 +73,6 @@ class MainScreen extends StatelessWidget {
                   }
                 },
                 itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'analytics',
-                    child: Text(strings.showAnalytics),
-                  ),
                   PopupMenuItem(value: 'import', child: Text(strings.importCsv)),
                   PopupMenuItem(value: 'export', child: Text(strings.exportCsv)),
                   PopupMenuItem(value: 'language', child: Text(strings.language)),
@@ -157,6 +153,34 @@ class MainScreen extends StatelessWidget {
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AnalyticsScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDay
+                              ? const Color(0xFFFFFFFF)
+                              : const Color(0xFF2A1A42),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.bar_chart,
+                          size: 28,
+                          color: isDay
+                              ? const Color(0xFF2A6CE8)
+                              : const Color(0xFFEADFFF),
                         ),
                       ),
                     ),
@@ -302,10 +326,15 @@ class MainScreen extends StatelessWidget {
                                     ),
                                     if (entry.isExpanded) ...[
                                       const SizedBox(height: 12),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
+                                          Expanded(
+                                            child: Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
                                           ActionChip(
                                             backgroundColor: isDay
                                                 ? const Color(0xFFDDEBFF)
@@ -326,51 +355,82 @@ class MainScreen extends StatelessWidget {
                                             onPressed: () =>
                                                 provider.updateEntryPeriod(index),
                                           ),
-                                          ActionChip(
-                                            backgroundColor: isDay
-                                                ? const Color(0xFFDDEBFF)
-                                                : const Color(0xFF2A1A42),
-                                            avatar: SvgPicture.asset(
-                                              'assets/icons/bottle.svg',
-                                              width: 18,
-                                              height: 18,
+                                          GestureDetector(
+                                            onLongPress: () => _editBottleTime(context, provider, index),
+                                            child: ActionChip(
+                                              backgroundColor: isDay
+                                                  ? const Color(0xFFDDEBFF)
+                                                  : const Color(0xFF2A1A42),
+                                              avatar: SvgPicture.asset(
+                                                'assets/icons/bottle.svg',
+                                                width: 18,
+                                                height: 18,
+                                                colorFilter: isDay ? const ColorFilter.mode(Colors.black, BlendMode.srcIn) : null,
+                                              ),
+                                              label: Text(
+                                                entry.bottle
+                                                    ? (entry.bottleTime != null ? '${strings.mamou} ${entry.getFormattedBottleTime(provider.locale, provider.is24Hour)}' : strings.mamou)
+                                                    : strings.didNotFeed,
+                                                style: TextStyle(color: textColor),
+                                              ),
+                                              onPressed: () => provider
+                                                  .updateSelectedBottle(index),
                                             ),
-                                            label: Text(
-                                              entry.bottle
-                                                  ? strings.mamou
-                                                  : strings.didNotFeed,
-                                              style: TextStyle(color: textColor),
-                                            ),
-                                            onPressed: () => provider
-                                                .updateSelectedBottle(index),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _buildMetricBlock(
-                                              strings.tempoDoricido,
-                                              sleepTime,
-                                              isDay,
-                                              textColor,
-                                              subtitleColor,
-                                            ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    PopupMenuButton<String>(
+                                      icon: Icon(Icons.more_vert, color: textColor),
+                                      onSelected: (value) {
+                                        if (value == 'delete') {
+                                          _deleteEntryConfirm(context, provider, strings, index);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.delete_outline, size: 20),
+                                              const SizedBox(width: 8),
+                                              Text(strings.deleteButton),
+                                            ],
                                           ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: _buildMetricBlock(
-                                              strings.tempoAcordado,
-                                              awakeTime,
-                                              isDay,
-                                              textColor,
-                                              subtitleColor,
-                                            ),
-                                          ),
-                                        ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        child: _buildMetricBlock(
+                                          strings.tempoDoricido,
+                                          sleepTime,
+                                          isDay,
+                                          textColor,
+                                          subtitleColor,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _buildMetricBlock(
+                                          strings.tempoAcordado,
+                                          awakeTime,
+                                          isDay,
+                                          textColor,
+                                          subtitleColor,
+                                        ),
                                       ),
                                     ],
+                                  ),
+                                ),
+                              ],
                                   ],
                                 ),
                               ),
@@ -378,7 +438,7 @@ class MainScreen extends StatelessWidget {
                           );
                         },
                       ),
-              ),
+            ),
             ],
           ),
         );
@@ -465,7 +525,9 @@ class MainScreen extends StatelessWidget {
     DateTime? current = isWokeUp
         ? provider.entries[index].wokeUp
         : provider.entries[index].slept;
-    if (current == null) return;
+    if (current == null) {
+      current = provider.entries[index].slept ?? provider.entries[index].wokeUp ?? DateTime.now();
+    }
     DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: current,
@@ -502,6 +564,49 @@ class MainScreen extends StatelessWidget {
         }
       }
     }
+  }
+
+  void _editBottleTime(BuildContext context, AppProvider provider, int index) async {
+    TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: provider.entries[index].bottleTime != null
+          ? TimeOfDay.fromDateTime(provider.entries[index].bottleTime!)
+          : TimeOfDay.now(),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: provider.is24Hour),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (pickedTime != null && context.mounted) {
+      final baseDate = provider.entries[index].slept ?? provider.entries[index].wokeUp ?? DateTime.now();
+      final newTime = DateTime(baseDate.year, baseDate.month, baseDate.day, pickedTime.hour, pickedTime.minute);
+      provider.editBottleTime(index, newTime);
+    }
+  }
+
+  void _deleteEntryConfirm(BuildContext context, AppProvider provider, LocalizedStrings strings, int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(strings.deleteEntry),
+        content: Text(strings.deleteConfirmation),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(strings.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              provider.deleteEntry(index);
+              Navigator.pop(context);
+            },
+            child: Text(strings.deleteButton),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTimeBlock(
@@ -668,23 +773,27 @@ class MainScreen extends StatelessWidget {
                       ),
                       Expanded(
                         child: Center(
-                          child: ActionChip(
-                            visualDensity: VisualDensity.compact,
-                            backgroundColor: isDay
-                                ? const Color(0xFFDDEBFF)
-                                : const Color(0xFF2A1A42),
-                            avatar: SvgPicture.asset(
-                              'assets/icons/bottle.svg',
-                              width: 16,
-                              height: 16,
+                          child: GestureDetector(
+                            onLongPress: () => _editBottleTime(context, provider, index),
+                            child: ActionChip(
+                              visualDensity: VisualDensity.compact,
+                              backgroundColor: isDay
+                                  ? const Color(0xFFDDEBFF)
+                                  : const Color(0xFF2A1A42),
+                              avatar: SvgPicture.asset(
+                                'assets/icons/bottle.svg',
+                                width: 16,
+                                height: 16,
+                                colorFilter: isDay ? const ColorFilter.mode(Colors.black, BlendMode.srcIn) : null,
+                              ),
+                              label: Text(
+                                provider.entries[index].bottle
+                                    ? (provider.entries[index].bottleTime != null ? '${strings.mamou} ${provider.entries[index].getFormattedBottleTime(provider.locale, provider.is24Hour)}' : strings.mamou)
+                                    : strings.didNotFeed,
+                                style: TextStyle(color: textColor, fontSize: 12),
+                              ),
+                              onPressed: () => provider.updateSelectedBottle(index),
                             ),
-                            label: Text(
-                              provider.entries[index].bottle
-                                  ? strings.mamou
-                                  : strings.didNotFeed,
-                              style: TextStyle(color: textColor, fontSize: 12),
-                            ),
-                            onPressed: () => provider.updateSelectedBottle(index),
                           ),
                         ),
                       ),

@@ -16,7 +16,7 @@ class AppStrings {
   static const String status = 'Status';
 
   // Buttons
-  static const String deleteButton = 'Delete';
+  static const String deleteButton = 'Delete Card';
   static const String cancel = 'Cancel';
   static const String confirm = 'Confirm';
   static const String ok = 'OK';
@@ -24,6 +24,8 @@ class AppStrings {
   static const String wokeUpButton = 'Woke Up';
 
   // Dialogs
+  static const String avgSleep = 'Average Sleep';
+  static const String avgAwake = 'Average Awake';
   static const String deleteEntry = 'Delete Entry';
   static const String deleteConfirmation =
       'Are you sure you want to delete this entry? This action cannot be undone.';
@@ -49,6 +51,7 @@ class AppStrings {
   static const String csvHeaderSlept = 'Slept';
   static const String csvHeaderPeriod = 'Period';
   static const String csvHeaderBottle = 'Bottle';
+  static const String csvHeaderBottleTime = 'Bottle Time';
   static const String csvValueDay = 'Day';
   static const String csvValueNight = 'Night';
   static const String csvValueYes = 'Yes';
@@ -71,8 +74,13 @@ class AppStrings {
   static const String lastNightSummary = 'Last Night Summary';
   static const String totalSlept = 'Total Slept';
   static const String totalAwake = 'Total Awake';
-  static const String wakeUps = 'Wake-ups';
+  static const String wakeUps = 'Woke up';
+  static const String averageSleep = 'Avg Sleep';
+  static const String averageAwake = 'Avg Awake';
+  static const String maxSleep = 'Max Sleep';
   static const String noLastNightData = 'No night data available yet';
+  static const String bottleTime = 'Bottle Time';
+  static const String timesUnit = 'times';
 }
 
 class AppStringsPortuguese {
@@ -81,7 +89,7 @@ class AppStringsPortuguese {
   // Menu items
   static const String importCsv = 'Importar CSV';
   static const String exportCsv = 'Exportar CSV';
-  static const String showAnalytics = 'Ver Evolucao';
+  static const String showAnalytics = 'Ver Evolução';
   static const String language = 'Idioma';
   static const String timeFormat = 'Formato de Hora';
 
@@ -93,7 +101,7 @@ class AppStringsPortuguese {
   static const String status = 'Status';
 
   // Buttons
-  static const String deleteButton = 'Deletar';
+  static const String deleteButton = 'Deletar Card';
   static const String cancel = 'Cancelar';
   static const String confirm = 'Confirmar';
   static const String ok = 'OK';
@@ -111,7 +119,8 @@ class AppStringsPortuguese {
   static const String hourFormat24 = '24 Horas';
   static const String hourFormat12 = '12 Horas';
   static const String csvExported = 'CSV exportado: {filename}';
-  static const String importCancelledOrFailed = 'Importacao cancelada ou falhou';
+  static const String importCancelledOrFailed =
+      'Importação cancelada ou falhou';
   static const String entriesImported = '{count} registros importados';
 
   // Time information
@@ -126,6 +135,7 @@ class AppStringsPortuguese {
   static const String csvHeaderSlept = 'Dormiu';
   static const String csvHeaderPeriod = 'Período';
   static const String csvHeaderBottle = 'Mamou';
+  static const String csvHeaderBottleTime = 'Hora da Mamada';
   static const String csvValueDay = 'Dia';
   static const String csvValueNight = 'Noite';
   static const String csvValueYes = 'Sim';
@@ -135,19 +145,24 @@ class AppStringsPortuguese {
   static const String didNotFeed = 'Não Mamou';
   static const String cardView = 'Visão em cards';
   static const String tableView = 'Visão em tabela';
-  static const String analyticsTitle = 'Evolucao do Sono';
-  static const String filterPeriod = 'Periodo';
+  static const String analyticsTitle = 'Evolução do Sono';
+  static const String filterPeriod = 'Período';
   static const String periodAll = 'Tudo';
-  static const String period7Days = 'Ultimos 7 dias';
-  static const String period14Days = 'Ultimos 14 dias';
-  static const String period30Days = 'Ultimos 30 dias';
-  static const String sleepAwakeTrend = 'Evolucao sono x acordado';
-  static const String dailySleepDistribution = 'Distribuicao diaria de sono';
+  static const String period7Days = 'Últimos 7 dias';
+  static const String period14Days = 'Últimos 14 dias';
+  static const String period30Days = 'Últimos 30 dias';
+  static const String sleepAwakeTrend = 'Evolução sono x acordado';
+  static const String dailySleepDistribution = 'Distribuição diária de sono';
   static const String hoursUnit = 'h';
-  static const String noDataForPeriod = 'Sem dados para o periodo selecionado';
-  static const String lastNightSummary = 'Resumo da Ultima Noite';
+  static const String noDataForPeriod = 'Sem dados para o período selecionado';
+  static const String lastNightSummary = 'Resumo da Última Noite';
   static const String totalSlept = 'Total Dormido';
   static const String totalAwake = 'Total Acordado';
-  static const String wakeUps = 'Vezes que Acordou';
+  static const String wakeUps = 'Acordou';
+  static const String averageSleep = 'Média de tempo dormindo';
+  static const String averageAwake = 'Média de tempo acordado';
+  static const String maxSleep = 'Máximo tempo dormindo';
   static const String noLastNightData = 'Sem dados de noite ainda';
+  static const String bottleTime = 'Hora da Mamada';
+  static const String timesUnit = 'vezes';
 }
