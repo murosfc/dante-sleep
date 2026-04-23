@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +15,7 @@ class AppProvider with ChangeNotifier {
   bool isDormiu = true;
   bool isDay = true;
   bool is24Hour = true;
+  bool isTableView = false;
   Locale locale = const Locale('en');
   int? selectedIndex;
 
@@ -24,6 +27,8 @@ class AppProvider with ChangeNotifier {
       entries = list.map((e) => SleepEntry.fromJson(e)).toList();
     }
     is24Hour = prefs.getBool('is24Hour') ?? true;
+    // Temporarily force card view on app startup.
+    isTableView = false;
     String lang = prefs.getString('language') ?? 'en';
     locale = Locale(lang);
     DateTime now = DateTime.now();
@@ -36,6 +41,7 @@ class AppProvider with ChangeNotifier {
     String entriesJson = jsonEncode(entries.map((e) => e.toJson()).toList());
     await prefs.setString('entries', entriesJson);
     await prefs.setBool('is24Hour', is24Hour);
+    await prefs.setBool('isTableView', isTableView);
     await prefs.setString('language', locale.languageCode);
   }
 
@@ -47,7 +53,11 @@ class AppProvider with ChangeNotifier {
 
   void toggleButton() {
     if (isDormiu) {
-      SleepEntry entry = SleepEntry(slept: DateTime.now(), isDay: isDay);
+      SleepEntry entry = SleepEntry(
+        slept: DateTime.now(),
+        isDay: isDay,
+        bottle: isDay,
+      );
       entries.insert(0, entry);
     } else {
       if (entries.isNotEmpty) {
@@ -80,9 +90,25 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  void updateSelectedBottle() {
-    if (selectedIndex != null) {
-      entries[selectedIndex!].bottle = !entries[selectedIndex!].bottle;
+  void updateEntryPeriod(int index) {
+    if (index >= 0 && index < entries.length) {
+      entries[index].isDay = !entries[index].isDay;
+      notifyListeners();
+      saveData();
+    }
+  }
+
+  void updateSelectedBottle(int index) {
+    if (index >= 0 && index < entries.length) {
+      entries[index].bottle = !entries[index].bottle;
+      notifyListeners();
+      saveData();
+    }
+  }
+
+  void toggleEntryExpanded(int index) {
+    if (index >= 0 && index < entries.length) {
+      entries[index].isExpanded = !entries[index].isExpanded;
       notifyListeners();
       saveData();
     }
@@ -112,9 +138,19 @@ class AppProvider with ChangeNotifier {
     saveData();
   }
 
-  Future<String> exportCsv() async {
+  void toggleViewMode() {
+    isTableView = !isTableView;
+    notifyListeners();
+    saveData();
+  }
+
+  Future<String> exportCsv({
+    required List<String> headers,
+    required String dayValue,
+    required String nightValue,
+  }) async {
     List<List<String>> rows = [
-      ['Sleep Time', 'Awake Time', 'Woke Up', 'Slept', 'Period', 'Bottle'],
+      headers,
     ];
     for (int i = 0; i < entries.length; i++) {
       SleepEntry e = entries[i];
@@ -123,17 +159,153 @@ class AppProvider with ChangeNotifier {
         e.getAwakeTime(entries, i),
         e.getFormattedWokeUp(locale, is24Hour),
         e.getFormattedSlept(locale, is24Hour),
-        e.isDay ? 'Day' : 'Night',
-        e.bottle ? 'Yes' : 'No',
+        e.isDay ? dayValue : nightValue,
+        e.bottle.toString(),
       ]);
     }
     String csv = const ListToCsvConverter().convert(rows);
-    Directory dir = await getApplicationDocumentsDirectory();
-    String filename = 'dante_sleep_export.csv';
-    File file = File('${dir.path}/$filename');
+    
+    // Get Downloads directory
+    Directory? downloadsDir;
+    try {
+      if (Platform.isAndroid) {
+        downloadsDir = Directory('/storage/emulated/0/Download');
+        if (!await downloadsDir.exists()) {
+          downloadsDir = await getExternalStorageDirectory();
+        }
+      } else if (Platform.isIOS) {
+        downloadsDir = await getApplicationDocumentsDirectory();
+      } else {
+        downloadsDir =
+            await getDownloadsDirectory() ??
+            await getApplicationDocumentsDirectory();
+      }
+    } catch (e) {
+      downloadsDir = await getApplicationDocumentsDirectory();
+    }
+
+    // Create timestamp
+    String timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    String filename = 'dante_sleep_$timestamp.csv';
+
+    File file = File('${downloadsDir!.path}/$filename');
     await file.writeAsString(csv);
     debugPrint('Exported to ${file.path}');
     return filename;
+  }
+
+  Future<int?> importCsv() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      );
+
+      if (result == null || result.files.isEmpty) return null;
+
+      String? filePath = result.files.single.path;
+      if (filePath == null) return null;
+
+      String csvContent = await File(filePath).readAsString();
+      List<List<dynamic>> rows = const CsvToListConverter().convert(csvContent);
+      final List<SleepEntry> importedEntries = [];
+
+      // Skip header row if present
+      int startIndex = 0;
+      if (rows.isNotEmpty &&
+          (rows[0][0].toString().toLowerCase().contains('sleep') ||
+              rows[0][0].toString().toLowerCase().contains('tempo'))) {
+        startIndex = 1;
+      }
+
+      for (int i = startIndex; i < rows.length; i++) {
+        List<dynamic> row = rows[i];
+        if (row.length >= 4) {
+          try {
+            DateTime? slept;
+            DateTime? wokeUp;
+            bool isDay = true;
+            bool bottle = false;
+
+            // Try to parse dates from columns
+            // Expected format: Sleep Time, Awake Time, Woke Up, Slept, Period, Bottle
+            if (row.length > 3 && row[3].toString().isNotEmpty) {
+              slept = _parseDateTime(row[3].toString());
+            }
+            if (row.length > 2 && row[2].toString().isNotEmpty) {
+              wokeUp = _parseDateTime(row[2].toString());
+            }
+            if (row.length > 4 && row[4].toString().isNotEmpty) {
+              isDay = row[4].toString().toLowerCase().contains('day');
+            }
+            if (row.length > 5 && row[5].toString().isNotEmpty) {
+              bottle = row[5].toString().toLowerCase() == 'true';
+            }
+
+            if (slept != null || wokeUp != null) {
+              importedEntries.add(
+                SleepEntry(
+                  slept: slept,
+                  wokeUp: wokeUp,
+                  isDay: isDay,
+                  bottle: bottle,
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('Error parsing row $i: $e');
+          }
+        }
+      }
+
+      // Sort entries by slept date (newest first)
+      importedEntries.sort((a, b) {
+        if (a.slept == null && b.slept == null) return 0;
+        if (a.slept == null) return 1;
+        if (b.slept == null) return -1;
+        return b.slept!.compareTo(a.slept!);
+      });
+
+      // Replace all existing records with imported records.
+      entries = importedEntries;
+      selectedIndex = null;
+
+      notifyListeners();
+      saveData();
+      return importedEntries.length;
+    } catch (e) {
+      debugPrint('Error importing CSV: $e');
+      return null;
+    }
+  }
+
+  DateTime? _parseDateTime(String dateStr) {
+    try {
+      // Try common formats
+      List<String> formats = [
+        'dd-MMM yyyy HH:mm',
+        'dd-MMM HH:mm',
+        'yyyy-MM-dd HH:mm:ss',
+        'yyyy-MM-dd HH:mm',
+        'dd/MM/yyyy HH:mm',
+        'MM/dd/yyyy HH:mm',
+      ];
+
+      for (String format in formats) {
+        try {
+          return DateFormat(format, 'pt_BR').parse(dateStr);
+        } catch (_) {
+          try {
+            return DateFormat(format, 'en').parse(dateStr);
+          } catch (_) {
+            continue;
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   void deleteEntry(int index) {

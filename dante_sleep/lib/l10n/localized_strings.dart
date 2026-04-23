@@ -14,11 +14,25 @@ class LocalizedStrings {
         : AppStrings.appTitle;
   }
 
+  String get importCsv {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.importCsv
+        : AppStrings.importCsv;
+  }
+
   String get exportCsv {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'pt'
         ? AppStringsPortuguese.exportCsv
         : AppStrings.exportCsv;
+  }
+
+  String get showAnalytics {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.showAnalytics
+        : AppStrings.showAnalytics;
   }
 
   String get language {
@@ -61,6 +75,146 @@ class LocalizedStrings {
     return locale.languageCode == 'pt'
         ? AppStringsPortuguese.mamou
         : AppStrings.mamou;
+  }
+
+  String get didNotFeed {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.didNotFeed
+        : AppStrings.didNotFeed;
+  }
+
+  String get dayLabel {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.dayLabel
+        : AppStrings.dayLabel;
+  }
+
+  String get nightLabel {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.nightLabel
+        : AppStrings.nightLabel;
+  }
+
+  String get cardView {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.cardView
+        : AppStrings.cardView;
+  }
+
+  String get tableView {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.tableView
+        : AppStrings.tableView;
+  }
+
+  String get analyticsTitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.analyticsTitle
+        : AppStrings.analyticsTitle;
+  }
+
+  String get filterPeriod {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.filterPeriod
+        : AppStrings.filterPeriod;
+  }
+
+  String get periodAll {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.periodAll
+        : AppStrings.periodAll;
+  }
+
+  String get period7Days {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.period7Days
+        : AppStrings.period7Days;
+  }
+
+  String get period14Days {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.period14Days
+        : AppStrings.period14Days;
+  }
+
+  String get period30Days {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.period30Days
+        : AppStrings.period30Days;
+  }
+
+  String get sleepAwakeTrend {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.sleepAwakeTrend
+        : AppStrings.sleepAwakeTrend;
+  }
+
+  String get dailySleepDistribution {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.dailySleepDistribution
+        : AppStrings.dailySleepDistribution;
+  }
+
+  String get hoursUnit {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.hoursUnit
+        : AppStrings.hoursUnit;
+  }
+
+  String get noDataForPeriod {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.noDataForPeriod
+        : AppStrings.noDataForPeriod;
+  }
+
+  String get lastNightSummary {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.lastNightSummary
+        : AppStrings.lastNightSummary;
+  }
+
+  String get totalSlept {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.totalSlept
+        : AppStrings.totalSlept;
+  }
+
+  String get totalAwake {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.totalAwake
+        : AppStrings.totalAwake;
+  }
+
+  String get wakeUps {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.wakeUps
+        : AppStrings.wakeUps;
+  }
+
+  String get noLastNightData {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.noLastNightData
+        : AppStrings.noLastNightData;
   }
 
   String get status {
@@ -147,6 +301,20 @@ class LocalizedStrings {
         : AppStrings.csvExported;
   }
 
+  String get importCancelledOrFailed {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.importCancelledOrFailed
+        : AppStrings.importCancelledOrFailed;
+  }
+
+  String get entriesImported {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.entriesImported
+        : AppStrings.entriesImported;
+  }
+
   String get timeInformation {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'pt'
@@ -192,5 +360,33 @@ class LocalizedStrings {
   String getCsvExportedMessage(String filename) {
     final template = csvExported;
     return template.replaceFirst('{filename}', filename);
+  }
+
+  String getEntriesImportedMessage(int count) {
+    final template = entriesImported;
+    return template.replaceFirst('{count}', count.toString());
+  }
+
+  List<String> getCsvHeaders() {
+    final locale = Localizations.localeOf(context);
+    if (locale.languageCode == 'pt') {
+      return [
+        AppStringsPortuguese.csvHeaderSleepTime,
+        AppStringsPortuguese.csvHeaderAwakeTime,
+        AppStringsPortuguese.csvHeaderWokeUp,
+        AppStringsPortuguese.csvHeaderSlept,
+        AppStringsPortuguese.csvHeaderPeriod,
+        AppStringsPortuguese.csvHeaderBottle,
+      ];
+    } else {
+      return [
+        AppStrings.csvHeaderSleepTime,
+        AppStrings.csvHeaderAwakeTime,
+        AppStrings.csvHeaderWokeUp,
+        AppStrings.csvHeaderSlept,
+        AppStrings.csvHeaderPeriod,
+        AppStrings.csvHeaderBottle,
+      ];
+    }
   }
 }

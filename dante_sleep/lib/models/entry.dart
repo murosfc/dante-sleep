@@ -7,14 +7,22 @@ class SleepEntry {
   DateTime? slept;
   bool isDay;
   bool bottle;
+  bool isExpanded;
 
-  SleepEntry({this.wokeUp, this.slept, this.isDay = true, this.bottle = false});
+  SleepEntry({
+    this.wokeUp,
+    this.slept,
+    this.isDay = true,
+    this.bottle = false,
+    this.isExpanded = true,
+  });
 
   Map<String, dynamic> toJson() => {
     'wokeUp': wokeUp?.toIso8601String(),
     'slept': slept?.toIso8601String(),
     'isDay': isDay,
     'bottle': bottle,
+    'isExpanded': isExpanded,
   };
 
   factory SleepEntry.fromJson(Map<String, dynamic> json) => SleepEntry(
@@ -22,6 +30,7 @@ class SleepEntry {
     slept: json['slept'] != null ? DateTime.parse(json['slept']) : null,
     isDay: json['isDay'] ?? true,
     bottle: json['bottle'] ?? false,
+    isExpanded: json['isExpanded'] ?? true,
   );
 
   String getFormattedWokeUp(Locale locale, bool is24Hour) {
@@ -43,22 +52,21 @@ class SleepEntry {
   }
 
   String getSleepTime(List<SleepEntry> allEntries, int index) {
-    if (wokeUp == null) return '-';
-    for (int i = index - 1; i >= 0; i--) {
-      if (allEntries[i].slept != null) {
-        Duration diff = wokeUp!.difference(allEntries[i].slept!);
-        return '${diff.inHours}:${(diff.inMinutes % 60).toString().padLeft(2, '0')}';
-      }
-    }
-    return '-';
+    if (wokeUp == null || slept == null) return '-';
+    Duration diff = wokeUp!.difference(slept!);
+    if (diff.isNegative) return '-';
+    return '${diff.inHours}:${(diff.inMinutes % 60).toString().padLeft(2, '0')}';
   }
 
   String getAwakeTime(List<SleepEntry> allEntries, int index) {
-    if (slept == null) return '-';
-    for (int i = index - 1; i >= 0; i--) {
-      if (allEntries[i].wokeUp != null) {
-        Duration diff = slept!.difference(allEntries[i].wokeUp!);
-        return '${diff.inHours}:${(diff.inMinutes % 60).toString().padLeft(2, '0')}';
+    if (wokeUp == null) return '-';
+    if (index - 1 >= 0) {
+      SleepEntry newerEntry = allEntries[index - 1];
+      if (newerEntry.slept != null) {
+        Duration diff = newerEntry.slept!.difference(wokeUp!);
+        if (!diff.isNegative) {
+          return '${diff.inHours}:${(diff.inMinutes % 60).toString().padLeft(2, '0')}';
+        }
       }
     }
     return '-';

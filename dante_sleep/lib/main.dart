@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'l10n/app_strings.dart';
 import 'providers/app_provider.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
@@ -24,20 +25,61 @@ class MyApp extends StatelessWidget {
       value: provider,
       child: Consumer<AppProvider>(
         builder: (context, provider, child) {
+          final bool isDay = provider.isDay;
+          final ColorScheme colorScheme = isDay
+              ? const ColorScheme.light(
+                  primary: Color(0xFF2A6CE8),
+                  secondary: Color(0xFF5FA7FF),
+                  surface: Color(0xFFF4F8FF),
+                  onSurface: Color(0xFF14223A),
+                )
+              : const ColorScheme.dark(
+                  primary: Color(0xFF3A235C),
+                  secondary: Color(0xFF5B3A88),
+                  surface: Color(0xFF130A1E),
+                  onSurface: Color(0xFFF2ECFF),
+                );
+
           return MaterialApp(
-            title: 'Dante Sleep',
-            theme: ThemeData.dark().copyWith(
-              primaryColor: provider.isDay ? Colors.blue : Colors.purple,
-              scaffoldBackgroundColor: Colors.grey[900],
-              textTheme: ThemeData.dark().textTheme.apply(
-                bodyColor: Colors.black,
-                displayColor: Colors.black,
-              ),
+            title: provider.locale.languageCode == 'pt'
+                ? AppStringsPortuguese.appTitle
+                : AppStrings.appTitle,
+            theme: ThemeData(
+              useMaterial3: true,
+              brightness: isDay ? Brightness.light : Brightness.dark,
+              colorScheme: colorScheme,
+              scaffoldBackgroundColor: isDay
+                  ? const Color(0xFFEAF2FF)
+                  : const Color(0xFF0B0612),
               appBarTheme: AppBarTheme(
-                backgroundColor: provider.isDay ? Colors.blue : Colors.purple,
-                titleTextStyle: const TextStyle(color: Colors.black),
+                centerTitle: false,
+                elevation: 0,
+                backgroundColor: isDay
+                    ? const Color(0xFF2A6CE8)
+                    : const Color(0xFF1A0F2A),
+                foregroundColor: isDay
+                    ? const Color(0xFFFFFFFF)
+                    : const Color(0xFFF8F3FF),
+                titleTextStyle: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              iconTheme: const IconThemeData(color: Colors.black),
+              cardTheme: CardThemeData(
+                elevation: 8,
+                shadowColor: isDay
+                    ? const Color(0x1F1E3A7A)
+                    : const Color(0x4D000000),
+                color: isDay ? const Color(0xFFFFFFFF) : const Color(0xFF1A1226),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              dividerTheme: DividerThemeData(
+                color: isDay
+                    ? const Color(0x663C6BC8)
+                    : const Color(0x66A387D4),
+              ),
             ),
             locale: provider.locale,
             localizationsDelegates: const [
