@@ -161,4 +161,32 @@ class FirebaseService {
         .get();
     return snapshot.docs;
   }
+
+  // Settings methods
+  Future<Map<String, dynamic>> getSettings(String userId) async {
+    try {
+      final doc = await firestore.collection('users').doc(userId).get();
+      final data = doc.data() ?? {};
+      return (data['settings'] ?? {}) as Map<String, dynamic>;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  Future<void> updateSettings(
+    String userId,
+    Map<String, dynamic> settings,
+  ) async {
+    try {
+      await firestore
+          .collection('users')
+          .doc(userId)
+          .update({
+        'settings': settings,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

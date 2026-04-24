@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/app_provider.dart';
 import '../services/firebase_service.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -96,6 +98,12 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         await FirebaseService().signUpWithEmail(email, password);
       }
+      
+      // Load settings after successful authentication
+      if (mounted) {
+        await Provider.of<AppProvider>(context, listen: false)
+            .loadSettingsFromCurrentUser();
+      }
     } on FirebaseAuthException catch (e) {
       setState(() {
         switch (e.code) {
@@ -130,6 +138,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       await FirebaseService().signInWithGoogle();
+      
+      // Load settings after successful authentication
+      if (mounted) {
+        await Provider.of<AppProvider>(context, listen: false)
+            .loadSettingsFromCurrentUser();
+      }
     } on FirebaseAuthException {
       setState(() {
         _errorMessage = _text(context, 'genericError');

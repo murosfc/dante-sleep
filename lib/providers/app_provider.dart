@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/entry.dart';
+import '../services/firebase_service.dart';
 
 class AppProvider with ChangeNotifier {
   List<SleepEntry> entries = [];
@@ -29,19 +31,57 @@ class AppProvider with ChangeNotifier {
 
   Future<void> loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    
+    // Load entries from local storage (will be migrated in PR 3)
     String? entriesJson = prefs.getString('entries');
     if (entriesJson != null) {
       List<dynamic> list = jsonDecode(entriesJson);
       entries = list.map((e) => SleepEntry.fromJson(e)).toList();
     }
+
+    // Try to load settings from Firestore first
+    try {
+      final user = FirebaseService().currentUser;
+      if (user != null) {
+        final firestoreSettings = await FirebaseService().getSettings(user.uid);
+        if (firestoreSettings.isNotEmpty) {
+          is24Hour = firestoreSettings['timeFormat24h'] ?? true;
+          String lang = firestoreSettings['language'] ?? 'en';
+          locale = Locale(lang);
+          notifyListeners();
+          return; // Successfully loaded from Firestore
+        }
+      }
+    } catch (_) {
+      // Silently fall through to SharedPreferences
+    }
+
+    // Fallback: load from SharedPreferences
     is24Hour = prefs.getBool('is24Hour') ?? true;
-    // Temporarily force card view on app startup.
     isTableView = false;
     String lang = prefs.getString('language') ?? 'en';
     locale = Locale(lang);
+    
     DateTime now = DateTime.now();
     isDay = now.hour >= 6 && now.hour < 18;
     notifyListeners();
+  }
+
+  Future<void> loadSettingsFromCurrentUser() async {
+    try {
+      final user = FirebaseService().currentUser;
+      if (user != null) {
+        final firestoreSettings = await FirebaseService().getSettings(user.uid);
+        if (firestoreSettings.isNotEmpty) {
+          is24Hour = firestoreSettings['timeFormat24h'] ?? true;
+          String lang = firestoreSettings['language'] ?? 'en';
+          locale = Locale(lang);
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading settings from current user: $e');
+    }
   }
 
   Future<void> saveData() async {
@@ -148,12 +188,14 @@ class AppProvider with ChangeNotifier {
     is24Hour = value;
     notifyListeners();
     saveData();
+    _syncSettingsToFirestore();
   }
 
   void setLanguage(String lang) {
     locale = Locale(lang);
     notifyListeners();
     saveData();
+    _syncSettingsToFirestore();
   }
 
   void toggleViewMode() {
@@ -359,5 +401,20 @@ class AppProvider with ChangeNotifier {
   void clearSelection() {
     selectedIndex = null;
     notifyListeners();
+  }
+
+  Future<void> _syncSettingsToFirestore() async {
+    try {
+      final user = FirebaseService().currentUser;
+      if (user != null) {
+        await FirebaseService().updateSettings(user.uid, {
+          'language': locale.languageCode,
+          'timeFormat24h': is24Hour,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error syncing settings to Firestore: $e');
+      // Silently fail - settings remain locally but will sync on retry
+    }
   }
 }
