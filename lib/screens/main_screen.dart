@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/localized_strings.dart';
 import '../providers/app_provider.dart';
+import '../services/firebase_service.dart';
 import 'analytics_screen.dart';
 
 class MainScreen extends StatelessWidget {
@@ -70,6 +71,8 @@ class MainScreen extends StatelessWidget {
                     }
                   } else if (value == 'time_format') {
                     _showTimeFormatDialog(context, provider, strings);
+                  } else if (value == 'logout') {
+                    await FirebaseService().signOut();
                   }
                 },
                 itemBuilder: (context) => [
@@ -80,6 +83,7 @@ class MainScreen extends StatelessWidget {
                     value: 'time_format',
                     child: Text(strings.timeFormat),
                   ),
+                  PopupMenuItem(value: 'logout', child: Text(strings.logout)),
                 ],
               ),
             ],

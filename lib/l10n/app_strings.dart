@@ -7,6 +7,7 @@ class AppStrings {
   static const String showAnalytics = 'Sleep Insights';
   static const String language = 'Language';
   static const String timeFormat = 'Time Format';
+  static const String logout = 'Logout';
 
   // Table headers
   static const String dormiu = 'Slept';
@@ -92,6 +93,7 @@ class AppStringsPortuguese {
   static const String showAnalytics = 'Ver Evolução';
   static const String language = 'Idioma';
   static const String timeFormat = 'Formato de Hora';
+  static const String logout = 'Sair';
 
   // Table headers
   static const String dormiu = 'Dormiu';

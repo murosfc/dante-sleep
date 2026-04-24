@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 
 import 'l10n/app_strings.dart';
 import 'providers/app_provider.dart';
+import 'screens/auth_gate.dart';
 import 'screens/main_screen.dart';
-import 'screens/splash_screen.dart';
 import 'services/firebase_service.dart';
 
 void main() async {
@@ -98,9 +98,8 @@ class MyApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             supportedLocales: const [Locale('en'), Locale('pt')],
-            initialRoute: '/',
+            home: const AuthGate(),
             routes: {
-              '/': (context) => const SplashScreen(),
               '/main': (context) => const MainScreen(),
             },
           );

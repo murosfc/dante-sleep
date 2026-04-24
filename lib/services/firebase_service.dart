@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -9,6 +10,7 @@ class FirebaseService {
 
   FirebaseFirestore? _firestore;
   FirebaseAuth? _auth;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   FirebaseFirestore get firestore {
     if (_firestore == null) {
@@ -30,13 +32,35 @@ class FirebaseService {
     _auth = FirebaseAuth.instance;
   }
 
+  Stream<User?> authStateChanges() {
+    return auth.authStateChanges();
+  }
+
+  Future<void> _ensureUserDocument(User user) async {
+    final userDoc = firestore.collection('users').doc(user.uid);
+    final now = FieldValue.serverTimestamp();
+
+    await userDoc.set({
+      'email': user.email,
+      'createdAt': now,
+      'updatedAt': now,
+      'settings': {
+        'language': 'en',
+        'timeFormat24h': true,
+      },
+    }, SetOptions(merge: true));
+  }
+
   // Auth methods
   Future<User?> signInWithEmail(String email, String password) async {
     try {
-      final credential = await _auth!.signInWithEmailAndPassword(
+      final credential = await auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      if (credential.user != null) {
+        await _ensureUserDocument(credential.user!);
+      }
       return credential.user;
     } catch (e) {
       rethrow;
@@ -45,18 +69,45 @@ class FirebaseService {
 
   Future<User?> signUpWithEmail(String email, String password) async {
     try {
-      final credential = await _auth!.createUserWithEmailAndPassword(
+      final credential = await auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      if (credential.user != null) {
+        await _ensureUserDocument(credential.user!);
+      }
       return credential.user;
     } catch (e) {
       rethrow;
     }
   }
 
+  Future<User?> signInWithGoogle() async {
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return null;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await auth.signInWithCredential(credential);
+      if (userCredential.user != null) {
+        await _ensureUserDocument(userCredential.user!);
+      }
+      return userCredential.user;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> signOut() async {
-    await _auth!.signOut();
+    await _googleSignIn.signOut();
+    await auth.signOut();
   }
 
   User? get currentUser => _auth?.currentUser;

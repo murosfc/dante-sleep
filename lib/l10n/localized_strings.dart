@@ -49,6 +49,13 @@ class LocalizedStrings {
         : AppStrings.timeFormat;
   }
 
+  String get logout {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.logout
+        : AppStrings.logout;
+  }
+
   String get dormiu {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'pt'
