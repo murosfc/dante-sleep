@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "68587916563",
+    "project_id": "dante-sleep",
+    "storage_bucket": "dante-sleep.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:68587916563:android:18dc5ee94f596d7ec59ee6",
+        "android_client_info": {
+          "package_name": "com.dante_sleep"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPM7mClAeizMfO5SdE6deGd1goBUflgKE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:68587916563:android:c26cee328eeb6c25c59ee6",
+        "android_client_info": {
+          "package_name": "com.example.dante_sleep"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPM7mClAeizMfO5SdE6deGd1goBUflgKE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

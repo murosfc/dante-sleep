@@ -6,9 +6,14 @@ import 'l10n/app_strings.dart';
 import 'providers/app_provider.dart';
 import 'screens/main_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/firebase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await FirebaseService().initialize();
+  
   final provider = AppProvider();
   await provider.loadData();
   runApp(MyApp(provider: provider));
