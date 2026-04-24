@@ -10,10 +10,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/entry.dart';
+import '../models/sync_queue_item.dart';
 import '../services/firebase_service.dart';
 
 class AppProvider with ChangeNotifier {
   List<SleepEntry> entries = [];
+  List<SyncQueueItem> _syncQueue = [];
+  bool _isMigratingData = false;
 
   bool get isDormiu {
     if (entries.isEmpty) return true;
@@ -32,12 +35,15 @@ class AppProvider with ChangeNotifier {
   Future<void> loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     
-    // Load entries from local storage (will be migrated in PR 3)
+    // Load entries from local storage (will be migrated in this PR)
     String? entriesJson = prefs.getString('entries');
     if (entriesJson != null) {
       List<dynamic> list = jsonDecode(entriesJson);
       entries = list.map((e) => SleepEntry.fromJson(e)).toList();
     }
+
+    // Load sync queue
+    await _loadSyncQueue();
 
     // Try to load settings from Firestore first
     try {
@@ -48,6 +54,10 @@ class AppProvider with ChangeNotifier {
           is24Hour = firestoreSettings['timeFormat24h'] ?? true;
           String lang = firestoreSettings['language'] ?? 'en';
           locale = Locale(lang);
+          
+          // Trigger migration of old entries
+          await _migrateOldEntriesToFirestore();
+          
           notifyListeners();
           return; // Successfully loaded from Firestore
         }
@@ -78,6 +88,12 @@ class AppProvider with ChangeNotifier {
           locale = Locale(lang);
           notifyListeners();
         }
+        
+        // Trigger migration of old entries
+        await _migrateOldEntriesToFirestore();
+        
+        // Trigger sync of any pending operations
+        await _syncToFirestore();
       }
     } catch (e) {
       debugPrint('Error loading settings from current user: $e');
@@ -105,22 +121,34 @@ class AppProvider with ChangeNotifier {
         slept: DateTime.now(),
         isDay: isDay,
         bottle: isDay,
+        syncStatus: 'pending',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
       entries.insert(0, entry);
+      _addToSyncQueue('create', entry);
     } else {
       if (entries.isNotEmpty) {
         entries[0].wokeUp = DateTime.now();
+        entries[0].syncStatus = 'pending';
+        entries[0].updatedAt = DateTime.now();
+        _addToSyncQueue('update', entries[0]);
       }
     }
     notifyListeners();
     saveData();
+    _syncToFirestore();
   }
 
   void toggleBottle() {
     if (entries.isNotEmpty) {
       entries[0].bottle = !entries[0].bottle;
+      entries[0].syncStatus = 'pending';
+      entries[0].updatedAt = DateTime.now();
       notifyListeners();
       saveData();
+      _addToSyncQueue('update', entries[0]);
+      _syncToFirestore();
     }
   }
 
@@ -130,8 +158,12 @@ class AppProvider with ChangeNotifier {
       if (newTime != null) {
         entries[index].bottle = true;
       }
+      entries[index].syncStatus = 'pending';
+      entries[index].updatedAt = DateTime.now();
       notifyListeners();
       saveData();
+      _addToSyncQueue('update', entries[index]);
+      _syncToFirestore();
     }
   }
 
@@ -143,24 +175,36 @@ class AppProvider with ChangeNotifier {
   void updateSelectedPeriod() {
     if (selectedIndex != null) {
       entries[selectedIndex!].isDay = !entries[selectedIndex!].isDay;
+      entries[selectedIndex!].syncStatus = 'pending';
+      entries[selectedIndex!].updatedAt = DateTime.now();
       notifyListeners();
       saveData();
+      _addToSyncQueue('update', entries[selectedIndex!]);
+      _syncToFirestore();
     }
   }
 
   void updateEntryPeriod(int index) {
     if (index >= 0 && index < entries.length) {
       entries[index].isDay = !entries[index].isDay;
+      entries[index].syncStatus = 'pending';
+      entries[index].updatedAt = DateTime.now();
       notifyListeners();
       saveData();
+      _addToSyncQueue('update', entries[index]);
+      _syncToFirestore();
     }
   }
 
   void updateSelectedBottle(int index) {
     if (index >= 0 && index < entries.length) {
       entries[index].bottle = !entries[index].bottle;
+      entries[index].syncStatus = 'pending';
+      entries[index].updatedAt = DateTime.now();
       notifyListeners();
       saveData();
+      _addToSyncQueue('update', entries[index]);
+      _syncToFirestore();
     }
   }
 
@@ -174,14 +218,22 @@ class AppProvider with ChangeNotifier {
 
   void editWokeUp(int index, DateTime newTime) {
     entries[index].wokeUp = newTime;
+    entries[index].syncStatus = 'pending';
+    entries[index].updatedAt = DateTime.now();
     notifyListeners();
     saveData();
+    _addToSyncQueue('update', entries[index]);
+    _syncToFirestore();
   }
 
   void editSlept(int index, DateTime newTime) {
     entries[index].slept = newTime;
+    entries[index].syncStatus = 'pending';
+    entries[index].updatedAt = DateTime.now();
     notifyListeners();
     saveData();
+    _addToSyncQueue('update', entries[index]);
+    _syncToFirestore();
   }
 
   void set24Hour(bool value) {
@@ -392,10 +444,17 @@ class AppProvider with ChangeNotifier {
   }
 
   void deleteEntry(int index) {
-    entries.removeAt(index);
-    selectedIndex = null;
-    notifyListeners();
-    saveData();
+    if (index >= 0 && index < entries.length) {
+      final entry = entries[index];
+      entries.removeAt(index);
+      selectedIndex = null;
+      notifyListeners();
+      saveData();
+      if (entry.firestoreId != null) {
+        _addToSyncQueue('delete', entry);
+      }
+      _syncToFirestore();
+    }
   }
 
   void clearSelection() {
@@ -415,6 +474,136 @@ class AppProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error syncing settings to Firestore: $e');
       // Silently fail - settings remain locally but will sync on retry
+    }
+  }
+
+  void _addToSyncQueue(String operation, SleepEntry entry) {
+    final item = SyncQueueItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      operation: operation,
+      entryId: entry.firestoreId ?? '',
+      data: entry.toFirestore(),
+      createdAt: DateTime.now(),
+    );
+    _syncQueue.add(item);
+    _saveSyncQueue();
+  }
+
+  Future<void> _syncToFirestore() async {
+    try {
+      final user = FirebaseService().currentUser;
+      if (user == null) return;
+
+      for (var item in _syncQueue.where((i) => i.status == 'pending')) {
+        try {
+          item.status = 'syncing';
+
+          switch (item.operation) {
+            case 'create':
+              final docId = await FirebaseService().createSleepEntry(user.uid, item.data);
+              // Update local entry with Firebase ID
+              final entryIndex = entries.indexWhere((e) => e.firestoreId == null && e.createdAt == DateTime.parse(item.data['createdAt']));
+              if (entryIndex >= 0) {
+                entries[entryIndex].firestoreId = docId;
+              }
+              item.entryId = docId;
+              item.status = 'synced';
+              break;
+
+            case 'update':
+              if (item.entryId.isNotEmpty) {
+                await FirebaseService().updateSleepEntry(user.uid, item.entryId, item.data);
+                item.status = 'synced';
+              }
+              break;
+
+            case 'delete':
+              if (item.entryId.isNotEmpty) {
+                await FirebaseService().deleteSleepEntry(user.uid, item.entryId);
+                item.status = 'synced';
+              }
+              break;
+          }
+        } catch (e) {
+          debugPrint('Error syncing item ${item.id}: $e');
+          item.status = 'failed';
+        }
+      }
+
+      // Remove synced items
+      _syncQueue.removeWhere((i) => i.status == 'synced');
+      _saveSyncQueue();
+
+      // Mark entries as synced
+      for (var entry in entries.where((e) => e.syncStatus == 'pending')) {
+        entry.syncStatus = 'synced';
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error in _syncToFirestore: $e');
+    }
+  }
+
+  Future<void> _loadSyncQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final queueJson = prefs.getString('sync_queue');
+      if (queueJson != null) {
+        final List<dynamic> list = jsonDecode(queueJson);
+        _syncQueue = list
+            .map((e) => SyncQueueItem.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error loading sync queue: $e');
+    }
+  }
+
+  Future<void> _saveSyncQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final queueJson = jsonEncode(_syncQueue.map((e) => e.toJson()).toList());
+      await prefs.setString('sync_queue', queueJson);
+    } catch (e) {
+      debugPrint('Error saving sync queue: $e');
+    }
+  }
+
+  Future<void> _migrateOldEntriesToFirestore() async {
+    if (_isMigratingData) return;
+
+    try {
+      final user = FirebaseService().currentUser;
+      if (user == null) return;
+
+      // Check if already migrated
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('entries_migrated_$user.uid') ?? false) return;
+
+      _isMigratingData = true;
+
+      // Get old entries from SharedPreferences
+      final entriesJson = prefs.getString('entries');
+      if (entriesJson != null && entriesJson.isNotEmpty) {
+        List<dynamic> list = jsonDecode(entriesJson);
+        List<Map<String, dynamic>> entriesToMigrate = [];
+
+        for (var e in list) {
+          final entry = SleepEntry.fromJson(e);
+          entriesToMigrate.add(entry.toFirestore());
+        }
+
+        if (entriesToMigrate.isNotEmpty) {
+          await FirebaseService().migrateSleepEntriesToFirestore(user.uid, entriesToMigrate);
+          await prefs.setBool('entries_migrated_${user.uid}', true);
+          debugPrint('Migrated ${entriesToMigrate.length} entries to Firestore');
+        }
+      }
+
+      _isMigratingData = false;
+    } catch (e) {
+      debugPrint('Error migrating entries: $e');
+      _isMigratingData = false;
     }
   }
 }

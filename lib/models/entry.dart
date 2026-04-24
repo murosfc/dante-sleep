@@ -3,20 +3,28 @@ import 'dart:ui';
 import 'package:intl/intl.dart';
 
 class SleepEntry {
+  String? firestoreId; // ID do documento no Firestore
   DateTime? wokeUp;
   DateTime? slept;
   bool isDay;
   bool bottle;
   DateTime? bottleTime;
   bool isExpanded;
+  String syncStatus; // 'synced', 'pending', 'failed'
+  DateTime? createdAt;
+  DateTime? updatedAt;
 
   SleepEntry({
+    this.firestoreId,
     this.wokeUp,
     this.slept,
     this.isDay = true,
     this.bottle = false,
     this.bottleTime,
     this.isExpanded = true,
+    this.syncStatus = 'synced',
+    this.createdAt,
+    this.updatedAt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -26,15 +34,45 @@ class SleepEntry {
     'bottle': bottle,
     'bottleTime': bottleTime?.toIso8601String(),
     'isExpanded': isExpanded,
+    'syncStatus': syncStatus,
+    'createdAt': createdAt?.toIso8601String(),
+    'updatedAt': updatedAt?.toIso8601String(),
+  };
+
+  Map<String, dynamic> toFirestore() => {
+    'wokeUp': wokeUp?.toIso8601String(),
+    'slept': slept?.toIso8601String(),
+    'isDay': isDay,
+    'bottle': bottle,
+    'bottleTime': bottleTime?.toIso8601String(),
+    'createdAt': createdAt ?? DateTime.now().toIso8601String(),
+    'updatedAt': DateTime.now().toIso8601String(),
   };
 
   factory SleepEntry.fromJson(Map<String, dynamic> json) => SleepEntry(
+    firestoreId: json['firestoreId'],
     wokeUp: json['wokeUp'] != null ? DateTime.parse(json['wokeUp']) : null,
     slept: json['slept'] != null ? DateTime.parse(json['slept']) : null,
     isDay: json['isDay'] ?? true,
     bottle: json['bottle'] ?? false,
     bottleTime: json['bottleTime'] != null ? DateTime.parse(json['bottleTime']) : null,
     isExpanded: json['isExpanded'] ?? true,
+    syncStatus: json['syncStatus'] ?? 'synced',
+    createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+    updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+  );
+
+  factory SleepEntry.fromFirestore(Map<String, dynamic> json, String docId) => SleepEntry(
+    firestoreId: docId,
+    wokeUp: json['wokeUp'] != null ? DateTime.parse(json['wokeUp']) : null,
+    slept: json['slept'] != null ? DateTime.parse(json['slept']) : null,
+    isDay: json['isDay'] ?? true,
+    bottle: json['bottle'] ?? false,
+    bottleTime: json['bottleTime'] != null ? DateTime.parse(json['bottleTime']) : null,
+    isExpanded: true,
+    syncStatus: 'synced',
+    createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+    updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
   );
 
   String getFormattedWokeUp(Locale locale, bool is24Hour) {

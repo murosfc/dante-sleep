@@ -162,6 +162,86 @@ class FirebaseService {
     return snapshot.docs;
   }
 
+  // Sleep entries methods (new structure: sleep_entries/{uid}/entries/{entryId})
+  Future<String> createSleepEntry(String userId, Map<String, dynamic> entryData) async {
+    try {
+      final docRef = await firestore
+          .collection('sleep_entries')
+          .doc(userId)
+          .collection('entries')
+          .add(entryData);
+      return docRef.id;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateSleepEntry(
+    String userId,
+    String entryId,
+    Map<String, dynamic> entryData,
+  ) async {
+    try {
+      await firestore
+          .collection('sleep_entries')
+          .doc(userId)
+          .collection('entries')
+          .doc(entryId)
+          .update(entryData);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteSleepEntry(String userId, String entryId) async {
+    try {
+      await firestore
+          .collection('sleep_entries')
+          .doc(userId)
+          .collection('entries')
+          .doc(entryId)
+          .delete();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Stream<QuerySnapshot> getSleepEntriesStream(String userId) {
+    return firestore
+        .collection('sleep_entries')
+        .doc(userId)
+        .collection('entries')
+        .orderBy('wokeUp', descending: true)
+        .snapshots();
+  }
+
+  Future<void> migrateSleepEntriesToFirestore(
+    String userId,
+    List<Map<String, dynamic>> entries,
+  ) async {
+    try {
+      // Ensure anchor document exists
+      await firestore
+          .collection('sleep_entries')
+          .doc(userId)
+          .set({'createdAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+
+      // Batch add entries
+      final batch = firestore.batch();
+      for (var entry in entries) {
+        final docRef = firestore
+            .collection('sleep_entries')
+            .doc(userId)
+            .collection('entries')
+            .doc();
+        batch.set(docRef, entry);
+      }
+      await batch.commit();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Settings methods
   Future<Map<String, dynamic>> getSettings(String userId) async {
     try {
