@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class SleepEntry {
@@ -45,35 +46,47 @@ class SleepEntry {
     'isDay': isDay,
     'bottle': bottle,
     'bottleTime': bottleTime?.toIso8601String(),
-    'createdAt': createdAt ?? DateTime.now().toIso8601String(),
+    'createdAt': (createdAt ?? DateTime.now()).toIso8601String(),
     'updatedAt': DateTime.now().toIso8601String(),
   };
 
   factory SleepEntry.fromJson(Map<String, dynamic> json) => SleepEntry(
     firestoreId: json['firestoreId'],
-    wokeUp: json['wokeUp'] != null ? DateTime.parse(json['wokeUp']) : null,
-    slept: json['slept'] != null ? DateTime.parse(json['slept']) : null,
+    wokeUp: _parseDynamicDateTime(json['wokeUp']),
+    slept: _parseDynamicDateTime(json['slept']),
     isDay: json['isDay'] ?? true,
     bottle: json['bottle'] ?? false,
-    bottleTime: json['bottleTime'] != null ? DateTime.parse(json['bottleTime']) : null,
+    bottleTime: _parseDynamicDateTime(json['bottleTime']),
     isExpanded: json['isExpanded'] ?? true,
     syncStatus: json['syncStatus'] ?? 'synced',
-    createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-    updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+    createdAt: _parseDynamicDateTime(json['createdAt']),
+    updatedAt: _parseDynamicDateTime(json['updatedAt']),
   );
 
   factory SleepEntry.fromFirestore(Map<String, dynamic> json, String docId) => SleepEntry(
     firestoreId: docId,
-    wokeUp: json['wokeUp'] != null ? DateTime.parse(json['wokeUp']) : null,
-    slept: json['slept'] != null ? DateTime.parse(json['slept']) : null,
+    wokeUp: _parseDynamicDateTime(json['wokeUp']),
+    slept: _parseDynamicDateTime(json['slept']),
     isDay: json['isDay'] ?? true,
     bottle: json['bottle'] ?? false,
-    bottleTime: json['bottleTime'] != null ? DateTime.parse(json['bottleTime']) : null,
+    bottleTime: _parseDynamicDateTime(json['bottleTime']),
     isExpanded: true,
     syncStatus: 'synced',
-    createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-    updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+    createdAt: _parseDynamicDateTime(json['createdAt']),
+    updatedAt: _parseDynamicDateTime(json['updatedAt']),
   );
+
+  static DateTime? _parseDynamicDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return null;
+      return DateTime.tryParse(trimmed);
+    }
+    return null;
+  }
 
   String getFormattedWokeUp(Locale locale, bool is24Hour) {
     if (wokeUp == null) return '';

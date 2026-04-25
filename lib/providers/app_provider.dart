@@ -670,7 +670,7 @@ class AppProvider with ChangeNotifier {
       final user = FirebaseService().currentUser;
       if (user == null) return;
 
-      for (var item in _syncQueue.where((i) => i.status == 'pending')) {
+      for (var item in _syncQueue.where((i) => i.status == 'pending' || i.status == 'failed')) {
         try {
           item.status = 'syncing';
 
@@ -678,7 +678,10 @@ class AppProvider with ChangeNotifier {
             case 'create':
               final docId = await FirebaseService().createSleepEntry(user.uid, item.data);
               // Update local entry with Firebase ID
-              final entryIndex = entries.indexWhere((e) => e.firestoreId == null && e.createdAt == DateTime.parse(item.data['createdAt']));
+              final createdAt = _asDateTime(item.data['createdAt']);
+              final entryIndex = entries.indexWhere(
+                (e) => e.firestoreId == null && e.createdAt == createdAt,
+              );
               if (entryIndex >= 0) {
                 entries[entryIndex].firestoreId = docId;
               }
@@ -825,5 +828,12 @@ class AppProvider with ChangeNotifier {
          _addToSyncQueue('create', entry);
       }
     }
+  }
+
+  DateTime? _asDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 }
