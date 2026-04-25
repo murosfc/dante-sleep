@@ -178,27 +178,33 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _displayName ?? strings.userDefaultName,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            InkWell(
-                              onTap: () => _showEditNameDialog(context, strings),
-                              child: Text(
-                                strings.editName,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isDay ? const Color(0xFF2A6CE8) : const Color(0xFFA5C5FF),
-                                  fontWeight: FontWeight.w500,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _displayName ?? strings.userDefaultName,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
+                                IconButton(
+                                  onPressed: () =>
+                                      _showEditNameDialog(context, strings),
+                                  icon: Icon(
+                                    Icons.edit,
+                                    size: 20,
+                                    color: isDay
+                                        ? const Color(0xFF2A6CE8)
+                                        : const Color(0xFFA5C5FF),
+                                  ),
+                                  tooltip: strings.editName,
+                                ),
+                              ],
                             ),
                           ],
                         ),
