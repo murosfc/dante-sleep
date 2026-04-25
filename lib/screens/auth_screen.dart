@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/localized_strings.dart';
 import '../providers/app_provider.dart';
 import '../services/firebase_service.dart';
 
@@ -17,6 +18,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _babyNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -28,59 +30,15 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _babyNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  String _text(BuildContext context, String key) {
-    final isPt = Localizations.localeOf(context).languageCode == 'pt';
-
-    const pt = {
-      'titleLogin': 'Entrar',
-      'titleRegister': 'Criar conta',
-      'email': 'E-mail',
-      'password': 'Senha',
-      'confirmPassword': 'Confirmar senha',
-      'submitLogin': 'Entrar',
-      'submitRegister': 'Cadastrar',
-      'switchToRegister': 'Nao tem conta? Cadastre-se',
-      'switchToLogin': 'Ja tem conta? Entrar',
-      'googleSignIn': 'Entrar com Google',
-      'required': 'Campo obrigatorio',
-      'invalidEmail': 'E-mail invalido',
-      'shortPassword': 'Senha deve ter pelo menos 6 caracteres',
-      'passwordMismatch': 'As senhas nao coincidem',
-      'invalidCredentials': 'E-mail ou senha invalidos',
-      'emailInUse': 'Este e-mail ja esta em uso',
-      'genericError': 'Nao foi possivel autenticar. Tente novamente.',
-    };
-
-    const en = {
-      'titleLogin': 'Sign in',
-      'titleRegister': 'Create account',
-      'email': 'Email',
-      'password': 'Password',
-      'confirmPassword': 'Confirm password',
-      'submitLogin': 'Sign in',
-      'submitRegister': 'Sign up',
-      'switchToRegister': 'No account yet? Create one',
-      'switchToLogin': 'Already have an account? Sign in',
-      'googleSignIn': 'Continue with Google',
-      'required': 'Required field',
-      'invalidEmail': 'Invalid email',
-      'shortPassword': 'Password must have at least 6 characters',
-      'passwordMismatch': 'Passwords do not match',
-      'invalidCredentials': 'Invalid email or password',
-      'emailInUse': 'This email is already in use',
-      'genericError': 'Could not authenticate. Please try again.',
-    };
-
-    return (isPt ? pt : en)[key] ?? key;
-  }
-
   Future<void> _submit() async {
+    final strings = LocalizedStrings(context);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -97,10 +55,14 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         await FirebaseService().signUpWithEmail(email, password);
         final name = _nameController.text.trim();
-        if (name.isNotEmpty) {
+        final babyName = _babyNameController.text.trim();
+        if (name.isNotEmpty || babyName.isNotEmpty) {
            final user = FirebaseService().currentUser;
            if (user != null) {
-              await FirebaseService().updateUserProfile(user.uid, {'displayName': name});
+              await FirebaseService().updateUserProfile(user.uid, {
+                if (name.isNotEmpty) 'displayName': name,
+                if (babyName.isNotEmpty) 'pendingBabyName': babyName,
+              });
            }
         }
       }
@@ -116,18 +78,18 @@ class _AuthScreenState extends State<AuthScreen> {
           case 'invalid-credential':
           case 'user-not-found':
           case 'wrong-password':
-            _errorMessage = _text(context, 'invalidCredentials');
+            _errorMessage = strings.authInvalidCredentials;
             break;
           case 'email-already-in-use':
-            _errorMessage = _text(context, 'emailInUse');
+            _errorMessage = strings.authEmailInUse;
             break;
           default:
-            _errorMessage = _text(context, 'genericError');
+            _errorMessage = strings.authGenericError;
         }
       });
     } catch (_) {
       setState(() {
-        _errorMessage = _text(context, 'genericError');
+        _errorMessage = strings.authGenericError;
       });
     } finally {
       if (mounted) {
@@ -137,6 +99,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _submitWithGoogle() async {
+    final strings = LocalizedStrings(context);
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -152,11 +115,11 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } on FirebaseAuthException {
       setState(() {
-        _errorMessage = _text(context, 'genericError');
+        _errorMessage = strings.authGenericError;
       });
     } catch (_) {
       setState(() {
-        _errorMessage = _text(context, 'genericError');
+        _errorMessage = strings.authGenericError;
       });
     } finally {
       if (mounted) {
@@ -167,10 +130,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isPt = Localizations.localeOf(context).languageCode == 'pt';
-    final title = _isLoginMode
-        ? _text(context, 'titleLogin')
-        : _text(context, 'titleRegister');
+    final strings = LocalizedStrings(context);
+    final title = _isLoginMode ? strings.authTitleLogin : strings.authTitleRegister;
 
     return Scaffold(
       body: Container(
@@ -223,7 +184,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               controller: _nameController,
                               style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
-                                labelText: isPt ? 'Nome (Opcional)' : 'Name (Optional)',
+                                labelText: strings.authUserName,
                                 labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
                                 filled: true,
                                 fillColor: const Color(0xFFF3F0FA),
@@ -235,6 +196,34 @@ class _AuthScreenState extends State<AuthScreen> {
                                   borderRadius: BorderRadius.all(Radius.circular(10)),
                                 ),
                               ),
+                              validator: (value) {
+                                final v = value?.trim() ?? '';
+                                if (v.isEmpty) return strings.authRequired;
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _babyNameController,
+                              style: const TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: strings.authBabyName,
+                                labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
+                                filled: true,
+                                fillColor: const Color(0xFFF3F0FA),
+                                border: const OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                ),
+                                focusedBorder: const OutlineInputBorder(
+                                  borderSide: BorderSide(color: Color(0xFF4B2FA6), width: 2),
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                ),
+                              ),
+                              validator: (value) {
+                                final v = value?.trim() ?? '';
+                                if (v.isEmpty) return strings.authRequired;
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 10),
                           ],
@@ -243,7 +232,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             keyboardType: TextInputType.emailAddress,
                             style: const TextStyle(color: Colors.black87),
                             decoration: InputDecoration(
-                              labelText: _text(context, 'email'),
+                              labelText: strings.authEmail,
                               labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
                               filled: true,
                               fillColor: Color(0xFFF3F0FA),
@@ -257,9 +246,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             validator: (value) {
                               final v = value?.trim() ?? '';
-                              if (v.isEmpty) return _text(context, 'required');
+                              if (v.isEmpty) return strings.authRequired;
                               if (!v.contains('@')) {
-                                return _text(context, 'invalidEmail');
+                                return strings.authInvalidEmail;
                               }
                               return null;
                             },
@@ -270,7 +259,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             obscureText: true,
                             style: const TextStyle(color: Colors.black87),
                             decoration: InputDecoration(
-                              labelText: _text(context, 'password'),
+                              labelText: strings.authPassword,
                               labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
                               filled: true,
                               fillColor: Color(0xFFF3F0FA),
@@ -284,9 +273,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             validator: (value) {
                               final v = value ?? '';
-                              if (v.isEmpty) return _text(context, 'required');
+                              if (v.isEmpty) return strings.authRequired;
                               if (v.length < 6) {
-                                return _text(context, 'shortPassword');
+                                return strings.authShortPassword;
                               }
                               return null;
                             },
@@ -298,7 +287,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               obscureText: true,
                               style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
-                                labelText: _text(context, 'confirmPassword'),
+                                labelText: strings.authConfirmPassword,
                                 labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
                                 filled: true,
                                 fillColor: Color(0xFFF3F0FA),
@@ -313,10 +302,10 @@ class _AuthScreenState extends State<AuthScreen> {
                               validator: (value) {
                                 final v = value ?? '';
                                 if (v.isEmpty) {
-                                  return _text(context, 'required');
+                                  return strings.authRequired;
                                 }
                                 if (v != _passwordController.text) {
-                                  return _text(context, 'passwordMismatch');
+                                  return strings.authPasswordMismatch;
                                 }
                                 return null;
                               },
@@ -358,8 +347,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                     )
                                   : Text(
                                       _isLoginMode
-                                          ? _text(context, 'submitLogin')
-                                          : _text(context, 'submitRegister'),
+                                          ? strings.authSubmitLogin
+                                          : strings.authSubmitRegister,
                                     ),
                             ),
                           ),
@@ -372,7 +361,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                               onPressed: _isLoading ? null : _submitWithGoogle,
                               icon: const Icon(Icons.g_mobiledata),
-                              label: Text(_text(context, 'googleSignIn')),
+                              label: Text(strings.authGoogleSignIn),
                             ),
                           ],
                           const SizedBox(height: 6),
@@ -387,34 +376,21 @@ class _AuthScreenState extends State<AuthScreen> {
                                   },
                             child: Text(
                               _isLoginMode
-                                  ? _text(context, 'switchToRegister')
-                                  : _text(context, 'switchToLogin'),
+                                  ? strings.authSwitchToRegister
+                                  : strings.authSwitchToLogin,
                             ),
                           ),
-                          if (isPt)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 4),
-                              child: Text(
-                                'Use e-mail e senha para acessar.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFF9E8ABF),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            )
-                          else
-                            const Padding(
-                              padding: EdgeInsets.only(top: 4),
-                              child: Text(
-                                'Use email and password to continue.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFF9E8ABF),
-                                  fontSize: 12,
-                                ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              strings.authFooterHint,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Color(0xFF9E8ABF),
+                                fontSize: 12,
                               ),
                             ),
+                          ),
                         ],
                       ),
                     ),

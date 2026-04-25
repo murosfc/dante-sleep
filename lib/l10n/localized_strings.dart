@@ -56,6 +56,48 @@ class LocalizedStrings {
         : AppStrings.logout;
   }
 
+  String get save {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.save
+        : AppStrings.save;
+  }
+
+  String get userDefaultName {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.userDefaultName
+        : AppStrings.userDefaultName;
+  }
+
+  String get editName {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.editName
+        : AppStrings.editName;
+  }
+
+  String get editNameTitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.editNameTitle
+        : AppStrings.editNameTitle;
+  }
+
+  String get nameHint {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.nameHint
+        : AppStrings.nameHint;
+  }
+
+  String get babyProfile {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.babyProfile
+        : AppStrings.babyProfile;
+  }
+
   String get dormiu {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'pt'
@@ -402,6 +444,146 @@ class LocalizedStrings {
   String getCsvExportedMessage(String filename) {
     final template = csvExported;
     return template.replaceFirst('{filename}', filename);
+  }
+
+  String get authTitleLogin {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authTitleLogin
+        : AppStrings.authTitleLogin;
+  }
+
+  String get authTitleRegister {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authTitleRegister
+        : AppStrings.authTitleRegister;
+  }
+
+  String get authUserName {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authUserName
+        : AppStrings.authUserName;
+  }
+
+  String get authBabyName {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authBabyName
+        : AppStrings.authBabyName;
+  }
+
+  String get authEmail {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authEmail
+        : AppStrings.authEmail;
+  }
+
+  String get authPassword {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authPassword
+        : AppStrings.authPassword;
+  }
+
+  String get authConfirmPassword {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authConfirmPassword
+        : AppStrings.authConfirmPassword;
+  }
+
+  String get authSubmitLogin {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authSubmitLogin
+        : AppStrings.authSubmitLogin;
+  }
+
+  String get authSubmitRegister {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authSubmitRegister
+        : AppStrings.authSubmitRegister;
+  }
+
+  String get authSwitchToRegister {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authSwitchToRegister
+        : AppStrings.authSwitchToRegister;
+  }
+
+  String get authSwitchToLogin {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authSwitchToLogin
+        : AppStrings.authSwitchToLogin;
+  }
+
+  String get authGoogleSignIn {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authGoogleSignIn
+        : AppStrings.authGoogleSignIn;
+  }
+
+  String get authRequired {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authRequired
+        : AppStrings.authRequired;
+  }
+
+  String get authInvalidEmail {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authInvalidEmail
+        : AppStrings.authInvalidEmail;
+  }
+
+  String get authShortPassword {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authShortPassword
+        : AppStrings.authShortPassword;
+  }
+
+  String get authPasswordMismatch {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authPasswordMismatch
+        : AppStrings.authPasswordMismatch;
+  }
+
+  String get authInvalidCredentials {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authInvalidCredentials
+        : AppStrings.authInvalidCredentials;
+  }
+
+  String get authEmailInUse {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authEmailInUse
+        : AppStrings.authEmailInUse;
+  }
+
+  String get authGenericError {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authGenericError
+        : AppStrings.authGenericError;
+  }
+
+  String get authFooterHint {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.authFooterHint
+        : AppStrings.authFooterHint;
   }
 
   String getEntriesImportedMessage(int count) {

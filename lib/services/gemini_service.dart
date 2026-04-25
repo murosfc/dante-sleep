@@ -16,19 +16,20 @@ class GeminiService {
     required BabyProfile profile,
     required List<SleepEntry> entries,
     required String languageCode,
+    String? preferredModel,
   }) async {
     if (apiKey.trim().isEmpty) return null;
 
-    try {
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: apiKey.trim(),
-        generationConfig: GenerationConfig(
-          temperature: 0.3,
-          maxOutputTokens: 512,
-        ),
-      );
+    final modelsToTry = <String>[
+      if (preferredModel != null && preferredModel.trim().isNotEmpty)
+        preferredModel.trim(),
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash',
+    ].toSet().toList();
 
+    try {
       final isPt = languageCode == 'pt';
       final prompt = _buildPrompt(
         profile: profile,
@@ -36,13 +37,46 @@ class GeminiService {
         isPt: isPt,
       );
 
-      final response = await model.generateContent([Content.text(prompt)]);
-      final text = response.text ?? '';
-      return _parseResponse(text);
+      Object? lastError;
+      for (final modelName in modelsToTry) {
+        try {
+          final model = GenerativeModel(
+            model: modelName,
+            apiKey: apiKey.trim(),
+            generationConfig: GenerationConfig(
+              temperature: 0.3,
+              maxOutputTokens: 512,
+            ),
+          );
+
+          final response = await model.generateContent([Content.text(prompt)]);
+          final text = response.text ?? '';
+          return _parseResponse(text);
+        } catch (e) {
+          lastError = e;
+          if (!_isModelNotSupportedError(e.toString())) {
+            debugPrint('GeminiService error ($modelName): $e');
+            return AiSuggestion(error: e.toString());
+          }
+        }
+      }
+
+      final message = lastError?.toString() ??
+          'No compatible Gemini model found for this API key/project.';
+      debugPrint('GeminiService model fallback error: $message');
+      return AiSuggestion(error: message);
     } catch (e) {
       debugPrint('GeminiService error: $e');
       return AiSuggestion(error: e.toString());
     }
+  }
+
+  static bool _isModelNotSupportedError(String message) {
+    final m = message.toLowerCase();
+    return m.contains('not found') ||
+        m.contains('not supported') ||
+        m.contains('listmodels') ||
+        m.contains('unsupported');
   }
 
   static String _buildPrompt({
@@ -51,8 +85,11 @@ class GeminiService {
     required bool isPt,
   }) {
     final rag = SleepKnowledgeBase.getContext(profile.birthdate, isPt: isPt);
-    final babyName =
-        profile.name?.isNotEmpty == true ? profile.name! : (isPt ? 'Bebê' : 'Baby');
+    final babyName = profile.name?.isNotEmpty == true
+      ? profile.name!
+      : (isPt
+        ? (profile.sex == 'female' ? 'sua bebê' : 'seu bebê')
+        : 'your baby');
     final ageStr = profile.getAgeString(isPt: isPt);
     final sexStr = isPt
         ? (profile.sex == 'male' ? 'Masculino' : 'Feminino')

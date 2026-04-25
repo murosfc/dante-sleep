@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/baby_profile.dart';
 import '../providers/app_provider.dart';
+import '../services/firebase_service.dart';
 import '../services/notification_service.dart';
 
 class BabyOnboardingScreen extends StatefulWidget {
@@ -38,19 +39,36 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
   }
 
   void _populate() {
-    if (!widget.isEditing) return;
     final p = Provider.of<AppProvider>(context, listen: false).babyProfile;
-    if (p == null) return;
-    setState(() {
-      _nameCtrl.text = p.name ?? '';
-      _birthdate = p.birthdate;
-      _sex = p.sex;
-      _feedingType = p.feedingType;
-      _complementaryFood = p.complementaryFoodStarted;
-      _routineCtrl.text = p.nightRoutineMinutes.toString();
-      _targetBedtimeHour = p.targetBedtimeHour;
-      _targetBedtimeMinute = p.targetBedtimeMinute;
-    });
+    if (p != null) {
+      setState(() {
+        _nameCtrl.text = p.name ?? '';
+        _birthdate = p.birthdate;
+        _sex = p.sex;
+        _feedingType = p.feedingType;
+        _complementaryFood = p.complementaryFoodStarted;
+        _routineCtrl.text = p.nightRoutineMinutes.toString();
+        _targetBedtimeHour = p.targetBedtimeHour;
+        _targetBedtimeMinute = p.targetBedtimeMinute;
+      });
+      return;
+    }
+
+    // New user: prefill baby name captured during registration.
+    _prefillBabyNameFromUserProfile();
+  }
+
+  Future<void> _prefillBabyNameFromUserProfile() async {
+    final user = FirebaseService().currentUser;
+    if (user == null) return;
+    final profile = await FirebaseService().getUserProfile(user.uid);
+    final pendingBabyName = (profile['pendingBabyName'] as String?)?.trim();
+    if (!mounted || pendingBabyName == null || pendingBabyName.isEmpty) return;
+    if (_nameCtrl.text.trim().isEmpty) {
+      setState(() {
+        _nameCtrl.text = pendingBabyName;
+      });
+    }
   }
 
   @override
@@ -102,6 +120,15 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
       ));
       return;
     }
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_t(
+          'Informe o nome do bebê.',
+          'Please enter the baby name.',
+        )),
+      ));
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -124,6 +151,12 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
 
     final provider = Provider.of<AppProvider>(context, listen: false);
     await provider.saveBabyProfile(profile);
+    final user = FirebaseService().currentUser;
+    if (user != null) {
+      try {
+        await FirebaseService().clearPendingBabyName(user.uid);
+      } catch (_) {}
+    }
 
     if (!mounted) return;
     setState(() => _isSaving = false);
@@ -207,8 +240,17 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
                             const SizedBox(height: 24),
                           ],
 
-                          _label(_t('Nome (opcional)', 'Name (optional)')),
-                          _field(controller: _nameCtrl, hint: 'Dante'),
+                          _label(_t('Nome do bebê *', 'Baby name *')),
+                          _field(
+                            controller: _nameCtrl,
+                            hint: 'Dante',
+                            validator: (v) {
+                              if ((v ?? '').trim().isEmpty) {
+                                return _t('Campo obrigatório', 'Required field');
+                              }
+                              return null;
+                            },
+                          ),
                           const SizedBox(height: 20),
 
                           _label(_t('Data de nascimento *', 'Birth date *')),

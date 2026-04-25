@@ -82,10 +82,10 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Editar Nome'),
+        title: Text(strings.editNameTitle),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'Nome'),
+          decoration: InputDecoration(hintText: strings.nameHint),
           autofocus: true,
         ),
         actions: [
@@ -100,7 +100,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
               }
               Navigator.pop(context);
             },
-            child: const Text('Salvar'),
+            child: Text(strings.save),
           ),
         ],
       ),
@@ -179,7 +179,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _displayName ?? 'Usuário',
+                              _displayName ?? strings.userDefaultName,
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -192,7 +192,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                             InkWell(
                               onTap: () => _showEditNameDialog(context, strings),
                               child: Text(
-                                'Editar nome',
+                                strings.editName,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: isDay ? const Color(0xFF2A6CE8) : const Color(0xFFA5C5FF),
@@ -214,9 +214,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
               ListTile(
                 leading: Icon(Icons.child_care, color: textColor),
                 title: Text(
-                  provider.locale.languageCode == 'pt'
-                      ? 'Perfil do Bebê'
-                      : 'Baby Profile',
+                  strings.babyProfile,
                   style: TextStyle(color: textColor),
                 ),
                 onTap: () {
@@ -299,7 +297,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                             children: [
                               const Text('🇧🇷', style: TextStyle(fontSize: 20)),
                               const SizedBox(width: 8),
-                              Text('Português', style: TextStyle(color: textColor)),
+                              Text(strings.portuguese, style: TextStyle(color: textColor)),
                             ],
                           ),
                         ),
@@ -309,7 +307,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                             children: [
                               const Text('🇺🇸', style: TextStyle(fontSize: 20)),
                               const SizedBox(width: 8),
-                              Text('English', style: TextStyle(color: textColor)),
+                              Text(strings.english, style: TextStyle(color: textColor)),
                             ],
                           ),
                         ),
@@ -329,7 +327,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                     Expanded(
                       child: Text(strings.timeFormat, style: TextStyle(color: textColor, fontSize: 16)),
                     ),
-                    Text('12h', style: TextStyle(color: textColor, fontSize: 12)),
+                    Text(strings.hourFormat12, style: TextStyle(color: textColor, fontSize: 12)),
                     Switch(
                       value: provider.is24Hour,
                       activeColor: const Color(0xFF2A6CE8),
@@ -337,7 +335,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                         provider.set24Hour(value);
                       },
                     ),
-                    Text('24h', style: TextStyle(color: textColor, fontSize: 12)),
+                    Text(strings.hourFormat24, style: TextStyle(color: textColor, fontSize: 12)),
                   ],
                 ),
               ),
@@ -347,7 +345,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
               // Logout
               ListTile(
                 leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text('Sair', style: TextStyle(color: Colors.red)),
+                title: Text(strings.logout, style: const TextStyle(color: Colors.red)),
                 onTap: () async {
                   Navigator.pop(context);
                   provider.clearUserData();

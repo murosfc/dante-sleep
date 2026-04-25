@@ -8,6 +8,12 @@ class AppStrings {
   static const String language = 'Language';
   static const String timeFormat = 'Time Format';
   static const String logout = 'Logout';
+  static const String save = 'Save';
+  static const String userDefaultName = 'User';
+  static const String editName = 'Edit name';
+  static const String editNameTitle = 'Edit Name';
+  static const String nameHint = 'Name';
+  static const String babyProfile = 'Baby Profile';
 
   // Table headers
   static const String dormiu = 'Slept';
@@ -82,6 +88,30 @@ class AppStrings {
   static const String noLastNightData = 'No night data available yet';
   static const String bottleTime = 'Bottle Time';
   static const String timesUnit = 'times';
+
+  // Auth
+  static const String authTitleLogin = 'Sign in';
+  static const String authTitleRegister = 'Create account';
+  static const String authUserName = 'Your name';
+  static const String authBabyName = 'Baby name';
+  static const String authEmail = 'Email';
+  static const String authPassword = 'Password';
+  static const String authConfirmPassword = 'Confirm password';
+  static const String authSubmitLogin = 'Sign in';
+  static const String authSubmitRegister = 'Sign up';
+  static const String authSwitchToRegister = 'No account yet? Create one';
+  static const String authSwitchToLogin = 'Already have an account? Sign in';
+  static const String authGoogleSignIn = 'Continue with Google';
+  static const String authRequired = 'Required field';
+  static const String authInvalidEmail = 'Invalid email';
+  static const String authShortPassword =
+      'Password must have at least 6 characters';
+  static const String authPasswordMismatch = 'Passwords do not match';
+  static const String authInvalidCredentials = 'Invalid email or password';
+  static const String authEmailInUse = 'This email is already in use';
+  static const String authGenericError =
+      'Could not authenticate. Please try again.';
+  static const String authFooterHint = 'Use email and password to continue.';
 }
 
 class AppStringsPortuguese {
@@ -94,6 +124,12 @@ class AppStringsPortuguese {
   static const String language = 'Idioma';
   static const String timeFormat = 'Formato de Hora';
   static const String logout = 'Sair';
+  static const String save = 'Salvar';
+  static const String userDefaultName = 'Usuário';
+  static const String editName = 'Editar nome';
+  static const String editNameTitle = 'Editar Nome';
+  static const String nameHint = 'Nome';
+  static const String babyProfile = 'Perfil do Bebê';
 
   // Table headers
   static const String dormiu = 'Dormiu';
@@ -167,4 +203,28 @@ class AppStringsPortuguese {
   static const String noLastNightData = 'Sem dados de noite ainda';
   static const String bottleTime = 'Hora da Mamada';
   static const String timesUnit = 'vezes';
+
+  // Auth
+  static const String authTitleLogin = 'Entrar';
+  static const String authTitleRegister = 'Criar conta';
+  static const String authUserName = 'Seu nome';
+  static const String authBabyName = 'Nome do bebê';
+  static const String authEmail = 'E-mail';
+  static const String authPassword = 'Senha';
+  static const String authConfirmPassword = 'Confirmar senha';
+  static const String authSubmitLogin = 'Entrar';
+  static const String authSubmitRegister = 'Cadastrar';
+  static const String authSwitchToRegister = 'Não tem conta? Cadastre-se';
+  static const String authSwitchToLogin = 'Já tem conta? Entrar';
+  static const String authGoogleSignIn = 'Entrar com Google';
+  static const String authRequired = 'Campo obrigatório';
+  static const String authInvalidEmail = 'E-mail inválido';
+  static const String authShortPassword =
+      'Senha deve ter pelo menos 6 caracteres';
+  static const String authPasswordMismatch = 'As senhas não coincidem';
+  static const String authInvalidCredentials = 'E-mail ou senha inválidos';
+  static const String authEmailInUse = 'Este e-mail já está em uso';
+  static const String authGenericError =
+      'Não foi possível autenticar. Tente novamente.';
+  static const String authFooterHint = 'Use e-mail e senha para acessar.';
 }

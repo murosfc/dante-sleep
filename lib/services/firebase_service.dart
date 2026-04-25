@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -39,16 +41,30 @@ class FirebaseService {
   Future<void> _ensureUserDocument(User user) async {
     final userDoc = firestore.collection('users').doc(user.uid);
     final now = FieldValue.serverTimestamp();
+    final defaultLanguage = _defaultLanguageFromSystem();
 
     await userDoc.set({
       'email': user.email,
       'createdAt': now,
       'updatedAt': now,
       'settings': {
-        'language': 'en',
+        'language': defaultLanguage,
         'timeFormat24h': true,
       },
     }, SetOptions(merge: true));
+  }
+
+  String _defaultLanguageFromSystem() {
+    try {
+      final code = ui.PlatformDispatcher.instance.locale.languageCode
+          .trim()
+          .toLowerCase();
+      if (code.isEmpty) return 'pt-BR';
+      if (code == 'pt') return 'pt-BR';
+      return 'en';
+    } catch (_) {
+      return 'pt-BR';
+    }
   }
 
   // Auth methods
@@ -278,6 +294,17 @@ class FirebaseService {
         ...data,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> clearPendingBabyName(String userId) async {
+    try {
+      await firestore.collection('users').doc(userId).update({
+        'pendingBabyName': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       rethrow;
     }

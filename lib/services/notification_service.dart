@@ -58,6 +58,9 @@ class NotificationService {
     required String? routineStart,
     required String? routineRationale,
     required bool isPt,
+    String? userName,
+    String? babyName,
+    String? babySex,
   }) async {
     await initialize();
     await cancelAll();
@@ -69,8 +72,15 @@ class NotificationService {
       if (scheduled != null && scheduled.isAfter(now)) {
         await _schedule(
           id: _napNotifId,
-          title: isPt ? '🍼 Hora da soneca!' : '🍼 Nap time!',
-          body: napRationale ?? napTime,
+          title: _napTitle(isPt: isPt, babyName: babyName, babySex: babySex),
+          body: _composeBody(
+            isPt: isPt,
+            userName: userName,
+            babyName: babyName,
+            babySex: babySex,
+            rationale: napRationale,
+            fallbackTime: napTime,
+          ),
           scheduledTime: scheduled,
         );
       }
@@ -81,12 +91,84 @@ class NotificationService {
       if (scheduled != null && scheduled.isAfter(now)) {
         await _schedule(
           id: _bedtimeNotifId,
-          title: isPt ? '🌙 Iniciar rotina noturna' : '🌙 Start bedtime routine',
-          body: routineRationale ?? routineStart,
+          title: _routineTitle(isPt: isPt, babyName: babyName, babySex: babySex),
+          body: _composeBody(
+            isPt: isPt,
+            userName: userName,
+            babyName: babyName,
+            babySex: babySex,
+            rationale: routineRationale,
+            fallbackTime: routineStart,
+          ),
           scheduledTime: scheduled,
         );
       }
     }
+  }
+
+  static String _napTitle({required bool isPt, String? babyName, String? babySex}) {
+    final hasBaby = babyName != null && babyName.trim().isNotEmpty;
+    if (isPt) {
+      return hasBaby
+          ? '🍼 Hora da soneca de ${babyName!.trim()}!'
+          : '🍼 Hora da soneca ${_ptPossessiveBaby(babySex)}!';
+    }
+    return hasBaby
+        ? '🍼 ${babyName!.trim()}\'s nap time!'
+        : '🍼 Nap time!';
+  }
+
+  static String _routineTitle({required bool isPt, String? babyName, String? babySex}) {
+    final hasBaby = babyName != null && babyName.trim().isNotEmpty;
+    if (isPt) {
+      return hasBaby
+          ? '🌙 Iniciar rotina noturna de ${babyName!.trim()}'
+          : '🌙 Iniciar rotina noturna ${_ptPossessiveBaby(babySex)}';
+    }
+    return hasBaby
+        ? '🌙 Start ${babyName!.trim()}\'s bedtime routine'
+        : '🌙 Start bedtime routine';
+  }
+
+  static String _composeBody({
+    required bool isPt,
+    required String? userName,
+    required String? babyName,
+    required String? babySex,
+    required String? rationale,
+    required String fallbackTime,
+  }) {
+    final trimmedUser = userName?.trim();
+    final trimmedBaby = babyName?.trim();
+    final hasBabyName = trimmedBaby != null && trimmedBaby.isNotEmpty;
+    final intro = (trimmedUser != null && trimmedUser.isNotEmpty)
+        ? (isPt ? '$trimmedUser, ' : '$trimmedUser, ')
+        : '';
+    final defaultText = hasBabyName
+        ? (isPt
+            ? 'momento de cuidar do sono de $trimmedBaby.'
+            : 'time to care for $trimmedBaby\'s sleep.')
+        : (isPt
+            ? 'momento de cuidar do sono ${_ptPossessiveBaby(babySex)}.'
+            : 'time to care for your baby\'s sleep.');
+    final content = (rationale != null && rationale.trim().isNotEmpty)
+        ? rationale.trim()
+        : fallbackTime;
+    if (content.isEmpty) return '$intro$defaultText'.trim();
+
+    if (isPt && !hasBabyName) {
+      return '$intro${_ptDirectBaby(babySex)}: $content'.trim();
+    }
+
+    return '$intro$content'.trim();
+  }
+
+  static String _ptPossessiveBaby(String? babySex) {
+    return babySex == 'female' ? 'da sua bebê' : 'do seu bebê';
+  }
+
+  static String _ptDirectBaby(String? babySex) {
+    return babySex == 'female' ? 'sua bebê' : 'seu bebê';
   }
 
   static Future<void> cancelAll() async {

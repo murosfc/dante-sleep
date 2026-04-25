@@ -26,6 +26,7 @@ class AppProvider with ChangeNotifier {
 
   // ─── Baby profile & AI ────────────────────────────────────────────────────
   BabyProfile? babyProfile;
+  String? userDisplayName;
   bool babyProfileLoaded = false;
   AiSuggestion? aiSuggestion;
   int get aiUnreadCount {
@@ -35,6 +36,10 @@ class AppProvider with ChangeNotifier {
   }
   bool _aiSuggestionsRead = false;
   String get geminiApiKeyFromEnv => (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+  String? get geminiModelFromEnv {
+    final value = (dotenv.env['GEMINI_MODEL'] ?? '').trim();
+    return value.isEmpty ? null : value;
+  }
   bool get hasGeminiApiKeyConfigured => geminiApiKeyFromEnv.isNotEmpty;
   bool get hasPendingAiNotifications =>
       !_aiSuggestionsRead && aiUnreadCount > 0;
@@ -54,10 +59,31 @@ class AppProvider with ChangeNotifier {
   bool isDay = true;
   bool is24Hour = true;
   bool isTableView = false;
-  Locale locale = ui.PlatformDispatcher.instance.locale.languageCode == 'en' 
-      ? const Locale('en') 
-      : const Locale('pt');
+  Locale locale = _systemDefaultLocale();
   int? selectedIndex;
+
+  static Locale _systemDefaultLocale() {
+    try {
+      final code = ui.PlatformDispatcher.instance.locale.languageCode
+          .trim()
+          .toLowerCase();
+      if (code == 'pt') return const Locale('pt', 'BR');
+      return const Locale('en');
+    } catch (_) {
+      return const Locale('pt', 'BR');
+    }
+  }
+
+  static Locale _localeFromStoredLanguage(String? lang) {
+    final value = (lang ?? '').trim().toLowerCase();
+    if (value.startsWith('pt')) return const Locale('pt', 'BR');
+    if (value.startsWith('en')) return const Locale('en');
+    return const Locale('pt', 'BR');
+  }
+
+  static String _storedLanguageFromLocale(Locale locale) {
+    return locale.languageCode == 'pt' ? 'pt-BR' : 'en';
+  }
 
   Future<void> loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -79,9 +105,9 @@ class AppProvider with ChangeNotifier {
 
     // No user or Firestore unavailable — load prefs only
     is24Hour = prefs.getBool('is24Hour$uidKey') ?? true;
-    String lang = prefs.getString('language$uidKey') ??
-        (ui.PlatformDispatcher.instance.locale.languageCode == 'en' ? 'en' : 'pt');
-    locale = Locale(lang);
+    String lang =
+      prefs.getString('language$uidKey') ?? _storedLanguageFromLocale(_systemDefaultLocale());
+    locale = _localeFromStoredLanguage(lang);
     DateTime now = DateTime.now();
     isDay = now.hour >= 6 && now.hour < 18;
     babyProfileLoaded = true;
@@ -102,8 +128,15 @@ class AppProvider with ChangeNotifier {
       if (firestoreSettings.isNotEmpty) {
         is24Hour = firestoreSettings['timeFormat24h'] ?? true;
         final lang = (firestoreSettings['language'] as String?) ??
-            (ui.PlatformDispatcher.instance.locale.languageCode == 'en' ? 'en' : 'pt');
-        locale = Locale(lang);
+          _storedLanguageFromLocale(_systemDefaultLocale());
+        locale = _localeFromStoredLanguage(lang);
+      }
+
+      // 1.1 User profile
+      final userProfile = await FirebaseService().getUserProfile(user.uid);
+      userDisplayName = (userProfile['displayName'] as String?)?.trim();
+      if (userDisplayName?.isEmpty == true) {
+        userDisplayName = null;
       }
 
       // 2. Entries — Firestore is the ONLY source of truth
@@ -180,6 +213,7 @@ class AppProvider with ChangeNotifier {
       profile: profile,
       entries: entries,
       languageCode: locale.languageCode,
+      preferredModel: geminiModelFromEnv,
     );
 
     aiSuggestion = result;
@@ -194,6 +228,9 @@ class AppProvider with ChangeNotifier {
           routineStart: result.bedtimeRoutineStart,
           routineRationale: result.bedtimeRationale,
           isPt: locale.languageCode == 'pt',
+          userName: userDisplayName,
+          babyName: profile.name,
+          babySex: profile.sex,
         );
       } catch (e) {
         debugPrint('NotificationService error: $e');
@@ -216,7 +253,7 @@ class AppProvider with ChangeNotifier {
     final uidKey = user != null ? '_${user.uid}' : '';
     await prefs.setBool('is24Hour$uidKey', is24Hour);
     await prefs.setBool('isTableView$uidKey', isTableView);
-    await prefs.setString('language$uidKey', locale.languageCode);
+    await prefs.setString('language$uidKey', _storedLanguageFromLocale(locale));
   }
 
   void togglePeriod() {
@@ -344,7 +381,7 @@ class AppProvider with ChangeNotifier {
   }
 
   void setLanguage(String lang) {
-    locale = Locale(lang);
+    locale = _localeFromStoredLanguage(lang);
     notifyListeners();
     saveData();
     _syncSettingsToFirestore();
@@ -566,7 +603,7 @@ class AppProvider with ChangeNotifier {
       final user = FirebaseService().currentUser;
       if (user != null) {
         await FirebaseService().updateSettings(user.uid, {
-          'language': locale.languageCode,
+          'language': _storedLanguageFromLocale(locale),
           'timeFormat24h': is24Hour,
         });
       }
