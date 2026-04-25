@@ -31,6 +31,7 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
 
   bool get _isPt => Localizations.localeOf(context).languageCode == 'pt';
   String _t(String pt, String en) => _isPt ? pt : en;
+  String get _defaultBabyName => _isPt ? 'Bebê' : 'Baby';
 
   @override
   void initState() {
@@ -41,8 +42,11 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
   void _populate() {
     final p = Provider.of<AppProvider>(context, listen: false).babyProfile;
     if (p != null) {
+      final profileName = p.name?.trim();
       setState(() {
-        _nameCtrl.text = p.name ?? '';
+        _nameCtrl.text = (profileName == null || profileName.isEmpty)
+            ? _defaultBabyName
+            : profileName;
         _birthdate = p.birthdate;
         _sex = p.sex;
         _feedingType = p.feedingType;
@@ -54,6 +58,10 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
       return;
     }
 
+    setState(() {
+      _nameCtrl.text = _defaultBabyName;
+    });
+
     // New user: prefill baby name captured during registration.
     _prefillBabyNameFromUserProfile();
   }
@@ -64,7 +72,7 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
     final profile = await FirebaseService().getUserProfile(user.uid);
     final pendingBabyName = (profile['pendingBabyName'] as String?)?.trim();
     if (!mounted || pendingBabyName == null || pendingBabyName.isEmpty) return;
-    if (_nameCtrl.text.trim().isEmpty) {
+    if (_nameCtrl.text.trim().isEmpty || _nameCtrl.text.trim() == _defaultBabyName) {
       setState(() {
         _nameCtrl.text = pendingBabyName;
       });

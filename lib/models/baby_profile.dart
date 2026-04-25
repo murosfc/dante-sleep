@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class BabyProfile {
   String? name;
   DateTime? birthdate;
@@ -87,17 +89,42 @@ class BabyProfile {
         'targetBedtimeMinute': targetBedtimeMinute,
       };
 
+  static DateTime? _parseFirestoreDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) return null;
+      return DateTime.tryParse(trimmed);
+    }
+    return null;
+  }
+
+  static int _parseInt(dynamic value, int fallback) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   factory BabyProfile.fromFirestore(Map<String, dynamic> data) => BabyProfile(
         name: data['name'] as String?,
-        birthdate: data['birthdate'] != null
-            ? DateTime.tryParse(data['birthdate'] as String)
-            : null,
+        birthdate: _parseFirestoreDate(data['birthdate']),
         sex: (data['sex'] as String?) ?? 'male',
         feedingType: (data['feedingType'] as String?) ?? 'breast',
         complementaryFoodStarted:
             (data['complementaryFoodStarted'] as bool?) ?? false,
-        nightRoutineMinutes: (data['nightRoutineMinutes'] as int?) ?? 30,
-        targetBedtimeHour: data['targetBedtimeHour'] as int?,
-        targetBedtimeMinute: data['targetBedtimeMinute'] as int?,
+        nightRoutineMinutes: _parseInt(data['nightRoutineMinutes'], 30),
+        targetBedtimeHour: _parseNullableInt(data['targetBedtimeHour']),
+        targetBedtimeMinute: _parseNullableInt(data['targetBedtimeMinute']),
       );
 }

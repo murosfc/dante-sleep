@@ -196,7 +196,16 @@ class AppProvider with ChangeNotifier {
 
       // 3. Baby profile
       final babyData = await FirebaseService().getBabyData(user.uid);
-      babyProfile = babyData != null ? BabyProfile.fromFirestore(babyData) : null;
+      if (babyData != null) {
+        try {
+          babyProfile = BabyProfile.fromFirestore(babyData);
+        } catch (e) {
+          debugPrint('Error parsing baby profile: $e');
+          babyProfile = null;
+        }
+      } else {
+        babyProfile = null;
+      }
       _loadedUserId = user.uid;
       babyProfileLoaded = true;
 
@@ -212,6 +221,10 @@ class AppProvider with ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error loading settings from current user: $e');
+      final user = FirebaseService().currentUser;
+      if (user != null) {
+        _loadedUserId = user.uid;
+      }
       babyProfileLoaded = true;
       notifyListeners();
     }
