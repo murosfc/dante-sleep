@@ -28,6 +28,10 @@ class AppProvider with ChangeNotifier {
   BabyProfile? babyProfile;
   String? userDisplayName;
   bool babyProfileLoaded = false;
+  String? _loadedUserId;
+  bool _isLoadingAuthUserData = false;
+  String? get loadedUserId => _loadedUserId;
+  bool get isLoadingAuthUserData => _isLoadingAuthUserData;
   AiSuggestion? aiSuggestion;
   int get aiUnreadCount {
     if (aiSuggestion == null || !aiSuggestion!.hasContent) return 0;
@@ -110,14 +114,43 @@ class AppProvider with ChangeNotifier {
     locale = _localeFromStoredLanguage(lang);
     DateTime now = DateTime.now();
     isDay = now.hour >= 6 && now.hour < 18;
+    _loadedUserId = null;
     babyProfileLoaded = true;
     notifyListeners();
+  }
+
+  Future<void> ensureUserDataLoadedFor(User user) async {
+    if (_loadedUserId == user.uid && babyProfileLoaded) return;
+    if (_isLoadingAuthUserData) return;
+
+    _isLoadingAuthUserData = true;
+
+    // Prevent showing stale data from previous account.
+    if (_loadedUserId != user.uid) {
+      entries = [];
+      babyProfile = null;
+      userDisplayName = null;
+      aiSuggestion = null;
+      _aiSuggestionsRead = false;
+    }
+
+    babyProfileLoaded = false;
+    notifyListeners();
+
+    try {
+      await loadSettingsFromCurrentUser();
+      _loadedUserId = user.uid;
+    } finally {
+      _isLoadingAuthUserData = false;
+      notifyListeners();
+    }
   }
 
   Future<void> loadSettingsFromCurrentUser() async {
     try {
       final user = FirebaseService().currentUser;
       if (user == null) {
+        _loadedUserId = null;
         babyProfileLoaded = true;
         notifyListeners();
         return;
@@ -164,6 +197,7 @@ class AppProvider with ChangeNotifier {
       // 3. Baby profile
       final babyData = await FirebaseService().getBabyData(user.uid);
       babyProfile = babyData != null ? BabyProfile.fromFirestore(babyData) : null;
+      _loadedUserId = user.uid;
       babyProfileLoaded = true;
 
       notifyListeners();
@@ -242,6 +276,12 @@ class AppProvider with ChangeNotifier {
     entries.clear();
     selectedIndex = null;
     _syncQueue.clear();
+    babyProfile = null;
+    userDisplayName = null;
+    aiSuggestion = null;
+    _aiSuggestionsRead = false;
+    _loadedUserId = null;
+    babyProfileLoaded = false;
     notifyListeners();
   }
 

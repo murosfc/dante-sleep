@@ -23,9 +23,23 @@ class AuthGate extends StatelessWidget {
         if (snapshot.hasData) {
           return Consumer<AppProvider>(
             builder: (ctx, provider, _) {
-              if (!provider.babyProfileLoaded) {
+              final user = snapshot.data!;
+
+              if (provider.isLoadingAuthUserData) {
                 return const _AuthLoadingScreen();
               }
+
+              if (provider.loadedUserId != user.uid || !provider.babyProfileLoaded) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!ctx.mounted) return;
+                  Provider.of<AppProvider>(
+                    ctx,
+                    listen: false,
+                  ).ensureUserDataLoadedFor(user);
+                });
+                return const _AuthLoadingScreen();
+              }
+
               if (provider.babyProfile == null) {
                 return const BabyOnboardingScreen();
               }
