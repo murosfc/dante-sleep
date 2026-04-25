@@ -317,9 +317,9 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                 ),
               ),
               
-              // Time Format Toggle
+              // Time Format Select
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     Icon(Icons.access_time, color: textColor),
@@ -327,15 +327,27 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                     Expanded(
                       child: Text(strings.timeFormat, style: TextStyle(color: textColor, fontSize: 16)),
                     ),
-                    Text(strings.hourFormat12, style: TextStyle(color: textColor, fontSize: 12)),
-                    Switch(
+                    DropdownButton<bool>(
                       value: provider.is24Hour,
-                      activeColor: const Color(0xFF2A6CE8),
-                      onChanged: (value) {
-                        provider.set24Hour(value);
+                      dropdownColor: bgColor,
+                      underline: const SizedBox(),
+                      icon: Icon(Icons.arrow_drop_down, color: textColor),
+                      onChanged: (bool? newValue) {
+                        if (newValue != null) {
+                          provider.set24Hour(newValue);
+                        }
                       },
+                      items: [
+                        DropdownMenuItem(
+                          value: false,
+                          child: Text(strings.hourFormat12, style: TextStyle(color: textColor, fontSize: 14)),
+                        ),
+                        DropdownMenuItem(
+                          value: true,
+                          child: Text(strings.hourFormat24, style: TextStyle(color: textColor, fontSize: 14)),
+                        ),
+                      ],
                     ),
-                    Text(strings.hourFormat24, style: TextStyle(color: textColor, fontSize: 12)),
                   ],
                 ),
               ),
