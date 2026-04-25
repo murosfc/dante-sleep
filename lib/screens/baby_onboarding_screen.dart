@@ -20,7 +20,6 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
 
   final _nameCtrl = TextEditingController();
   final _routineCtrl = TextEditingController(text: '30');
-  final _apiKeyCtrl = TextEditingController();
 
   DateTime? _birthdate;
   String _sex = 'male';
@@ -51,7 +50,6 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
       _routineCtrl.text = p.nightRoutineMinutes.toString();
       _targetBedtimeHour = p.targetBedtimeHour;
       _targetBedtimeMinute = p.targetBedtimeMinute;
-      _apiKeyCtrl.text = p.geminiApiKey ?? '';
     });
   }
 
@@ -59,7 +57,6 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _routineCtrl.dispose();
-    _apiKeyCtrl.dispose();
     super.dispose();
   }
 
@@ -123,8 +120,6 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
       nightRoutineMinutes: int.tryParse(_routineCtrl.text.trim()) ?? 30,
       targetBedtimeHour: _targetBedtimeHour,
       targetBedtimeMinute: _targetBedtimeMinute,
-      geminiApiKey:
-          _apiKeyCtrl.text.trim().isEmpty ? null : _apiKeyCtrl.text.trim(),
     );
 
     final provider = Provider.of<AppProvider>(context, listen: false);
@@ -138,10 +133,7 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(_t('Perfil salvo!', 'Profile saved!')),
       ));
-      // Re-run AI if key changed
-      if (profile.geminiApiKey?.isNotEmpty == true) {
-        provider.refreshAiSuggestions();
-      }
+      provider.refreshAiSuggestions();
     }
     // If first-time onboarding: AuthGate reacts to babyProfile becoming non-null
   }
@@ -296,18 +288,6 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          _label(_t(
-                              'Chave API Gemini (IA)',
-                              'Gemini API Key (AI)')),
-                          _field(
-                            controller: _apiKeyCtrl,
-                            hint: 'AIza…',
-                            obscureText: true,
-                            helperText: _t(
-                              'Obtenha em aistudio.google.com/app/apikey',
-                              'Get yours at aistudio.google.com/app/apikey',
-                            ),
-                          ),
                           const SizedBox(height: 32),
 
                           ElevatedButton(

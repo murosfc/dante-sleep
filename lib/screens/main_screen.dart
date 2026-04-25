@@ -8,7 +8,6 @@ import '../providers/app_provider.dart';
 import '../services/firebase_service.dart';
 import '../widgets/settings_bottom_sheet.dart';
 import 'analytics_screen.dart';
-import 'baby_onboarding_screen.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -911,45 +910,36 @@ class _AiSuggestionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ai = provider.aiSuggestion;
-    final hasKey = provider.babyProfile?.geminiApiKey?.isNotEmpty == true;
+    final hasKey = provider.hasGeminiApiKeyConfigured;
 
     if (!hasKey) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-        child: InkWell(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const BabyOnboardingScreen(isEditing: true),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDay ? const Color(0xFFF0F4FF) : const Color(0xFF1A1030),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDay ? const Color(0xFFCCD6F0) : const Color(0xFF2A1B3E),
             ),
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDay ? const Color(0xFFF0F4FF) : const Color(0xFF1A1030),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isDay ? const Color(0xFFCCD6F0) : const Color(0xFF2A1B3E),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF9A7CFF)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    provider.locale.languageCode == 'pt'
-                        ? 'Adicione a Chave API Gemini no Perfil do Bebê para ativar a IA'
-                        : 'Add Gemini API Key in Baby Profile to enable AI suggestions',
-                    style: const TextStyle(
-                      color: Color(0xFF9A7CFF),
-                      fontSize: 12,
-                    ),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF9A7CFF)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  provider.locale.languageCode == 'pt'
+                      ? 'Sugestões de IA indisponíveis. Configure GEMINI_API_KEY no arquivo .env do projeto.'
+                      : 'AI suggestions unavailable. Configure GEMINI_API_KEY in the project .env file.',
+                  style: const TextStyle(
+                    color: Color(0xFF9A7CFF),
+                    fontSize: 12,
                   ),
                 ),
-                const Icon(Icons.chevron_right, size: 18, color: Color(0xFF9A7CFF)),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       );

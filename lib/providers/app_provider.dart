@@ -6,6 +6,7 @@ import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +34,8 @@ class AppProvider with ChangeNotifier {
         (aiSuggestion!.bedtimeRoutineStart != null ? 1 : 0);
   }
   bool _aiSuggestionsRead = false;
+  String get geminiApiKeyFromEnv => (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+  bool get hasGeminiApiKeyConfigured => geminiApiKeyFromEnv.isNotEmpty;
   bool get hasPendingAiNotifications =>
       !_aiSuggestionsRead && aiUnreadCount > 0;
   void markAiSuggestionsRead() {
@@ -137,7 +140,7 @@ class AppProvider with ChangeNotifier {
       await _syncToFirestore();
 
       // 5. Refresh AI suggestions if API key is configured
-      if (babyProfile?.geminiApiKey?.isNotEmpty == true) {
+      if (hasGeminiApiKeyConfigured && babyProfile != null) {
         refreshAiSuggestions();
       }
     } catch (e) {
@@ -165,8 +168,8 @@ class AppProvider with ChangeNotifier {
   // ─── AI suggestions ────────────────────────────────────────────────────────
   Future<void> refreshAiSuggestions() async {
     final profile = babyProfile;
-    final apiKey = profile?.geminiApiKey ?? '';
-    if (apiKey.trim().isEmpty) return;
+    final apiKey = geminiApiKeyFromEnv;
+    if (apiKey.isEmpty || profile == null) return;
 
     _aiSuggestionsRead = false;
     aiSuggestion = const AiSuggestion.loading();
@@ -174,7 +177,7 @@ class AppProvider with ChangeNotifier {
 
     final result = await GeminiService.getSuggestions(
       apiKey: apiKey,
-      profile: profile!,
+      profile: profile,
       entries: entries,
       languageCode: locale.languageCode,
     );

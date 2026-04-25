@@ -7,7 +7,6 @@ class BabyProfile {
   int nightRoutineMinutes;
   int? targetBedtimeHour;
   int? targetBedtimeMinute;
-  String? geminiApiKey;
 
   BabyProfile({
     this.name,
@@ -18,7 +17,6 @@ class BabyProfile {
     this.nightRoutineMinutes = 30,
     this.targetBedtimeHour,
     this.targetBedtimeMinute,
-    this.geminiApiKey,
   });
 
   String get targetBedtimeString {
@@ -87,7 +85,6 @@ class BabyProfile {
         'nightRoutineMinutes': nightRoutineMinutes,
         'targetBedtimeHour': targetBedtimeHour,
         'targetBedtimeMinute': targetBedtimeMinute,
-        'geminiApiKey': geminiApiKey,
       };
 
   factory BabyProfile.fromFirestore(Map<String, dynamic> data) => BabyProfile(
@@ -102,6 +99,5 @@ class BabyProfile {
         nightRoutineMinutes: (data['nightRoutineMinutes'] as int?) ?? 30,
         targetBedtimeHour: data['targetBedtimeHour'] as int?,
         targetBedtimeMinute: data['targetBedtimeMinute'] as int?,
-        geminiApiKey: data['geminiApiKey'] as String?,
       );
 }
