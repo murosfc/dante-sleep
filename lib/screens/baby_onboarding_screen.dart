@@ -82,6 +82,7 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
+      locale: Localizations.localeOf(context),
       initialDate: _birthdate ?? now.subtract(const Duration(days: 90)),
       firstDate: DateTime(now.year - 5),
       lastDate: now,

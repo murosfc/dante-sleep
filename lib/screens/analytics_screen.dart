@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/localized_strings.dart';
@@ -17,6 +18,7 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   AnalyticsPeriod _period = AnalyticsPeriod.all;
+  DateTime? _selectedNightStartDate;
 
   @override
   Widget build(BuildContext context) {
@@ -32,35 +34,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         final bDate = b.slept ?? b.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
         return aDate.compareTo(bDate);
       });
-    final nightSummary = _buildLastNightSummary(provider.entries);
+    final nightGroups = _buildNightGroups(provider.entries);
+    final latestNightDate = nightGroups.isEmpty ? null : nightGroups.first.startDate;
+    final effectiveNightDate = _resolveEffectiveNightDate(nightGroups, latestNightDate);
+    final selectedNightGroup = effectiveNightDate == null
+      ? null
+      : _findNightGroupByDate(nightGroups, effectiveNightDate);
+    final nightSummary = selectedNightGroup?.summary;
 
-    final sleepSpots = <FlSpot>[];
-    final awakeSpots = <FlSpot>[];
-    final bars = <BarChartGroupData>[];
-    double maxY = 1;
-
-    for (int i = 0; i < filtered.length; i++) {
-      final sleepHours = _sleepHours(filtered[i]);
-      final awakeHours = _awakeHours(filtered, i);
-      sleepSpots.add(FlSpot(i.toDouble(), sleepHours));
-      awakeSpots.add(FlSpot(i.toDouble(), awakeHours));
-      bars.add(
-        BarChartGroupData(
-          x: i,
-          barRods: [
-            BarChartRodData(
-              toY: sleepHours,
-              width: 12,
-              borderRadius: BorderRadius.circular(6),
-              color: isDay ? const Color(0xFF2A6CE8) : const Color(0xFF9A7CFF),
-            ),
-          ],
-        ),
-      );
-      if (sleepHours > maxY) maxY = sleepHours;
-      if (awakeHours > maxY) maxY = awakeHours;
-    }
-    maxY = (maxY + 1).clamp(2, 24);
+    final nightDailySummaries =
+        _buildDailySummaries(filtered.where((entry) => !entry.isDay).toList());
+    final dayDailySummaries =
+        _buildDailySummaries(filtered.where((entry) => entry.isDay).toList());
 
     return Scaffold(
       appBar: AppBar(title: Text(strings.analyticsTitle)),
@@ -69,6 +54,136 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (effectiveNightDate != null)
+              Row(
+                children: [
+                  Text(
+                    '${strings.lastNightSummary} ${_formatNightDateLabel(effectiveNightDate, context)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => _pickNightDate(context, nightGroups),
+                    icon: const Icon(Icons.calendar_today, size: 15),
+                    label: Text(_formatNightDateLabel(effectiveNightDate, context)),
+                  ),
+                ],
+              )
+            else
+              Text(
+                strings.lastNightSummary,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  color: textColor,
+                ),
+              ),
+            const SizedBox(height: 8),
+            Card(
+              child: ExpansionTile(
+                initiallyExpanded: true,
+                title: Text(
+                  strings.lastNightSummary,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                iconColor: textColor,
+                collapsedIconColor: textColor,
+                shape: const Border(),
+                collapsedShape: const Border(),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                children: [
+                  if (nightSummary == null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        strings.noLastNightData,
+                        style: TextStyle(color: subtitleColor),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: [
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.totalSlept,
+                                    _formatHours(nightSummary.totalSleepHours),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.totalAwake,
+                                    _formatHours(nightSummary.totalAwakeHours),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.wakeUps,
+                                    '${nightSummary.wakeCount} ${strings.timesUnit}',
+                                    textColor,
+                                    subtitleColor,
+                                    pushValueToBottom: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.averageSleep,
+                                    _formatHours(nightSummary.avgSleepBlock),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.averageAwake,
+                                    _formatHours(nightSummary.avgAwakeBlock),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.maxSleep,
+                                    _formatHours(nightSummary.maxSleepBlock),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Text(
@@ -122,107 +237,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Card(
-              child: ExpansionTile(
-                title: Text(
-                  strings.lastNightSummary,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
-                ),
-                iconColor: textColor,
-                collapsedIconColor: textColor,
-                shape: const Border(),
-                collapsedShape: const Border(),
-                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                children: [
-                  if (nightSummary == null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        strings.noLastNightData,
-                        style: TextStyle(color: subtitleColor),
-                      ),
-                    )
-                  else
-                    Column(
-                      children: [
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.totalSlept,
-                                    _formatHours(nightSummary.totalSleepHours),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.totalAwake,
-                                    _formatHours(nightSummary.totalAwakeHours),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.wakeUps,
-                                    '${nightSummary.wakeCount} ${strings.timesUnit}',
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(height: 10),
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.averageSleep,
-                                    _formatHours(nightSummary.avgSleepBlock),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.averageAwake,
-                                    _formatHours(nightSummary.avgAwakeBlock),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.maxSleep,
-                                    _formatHours(nightSummary.maxSleepBlock),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
             const SizedBox(height: 12),
-            if (filtered.isEmpty)
+            if (nightDailySummaries.isEmpty && dayDailySummaries.isEmpty)
               Expanded(
                 child: Center(
                   child: Text(
@@ -235,119 +251,36 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Expanded(
                 child: ListView(
                   children: [
-                    _buildChartCard(
-                      title: strings.sleepAwakeTrend,
-                      child: SizedBox(
-                        height: 260,
-                        child: LineChart(
-                          LineChartData(
-                            minY: 0,
-                            maxY: maxY,
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 2,
-                              getDrawingHorizontalLine: (_) => FlLine(
-                                color: subtitleColor.withValues(alpha: 0.2),
-                                strokeWidth: 1,
-                              ),
-                            ),
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 36,
-                                  getTitlesWidget: (value, _) => Text(
-                                    '${value.toInt()}${strings.hoursUnit}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: subtitleColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              bottomTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: sleepSpots,
-                                isCurved: true,
-                                barWidth: 3,
-                                color: isDay
-                                    ? const Color(0xFF2A6CE8)
-                                    : const Color(0xFF9A7CFF),
-                                dotData: const FlDotData(show: false),
-                              ),
-                              LineChartBarData(
-                                spots: awakeSpots,
-                                isCurved: true,
-                                barWidth: 3,
-                                color: isDay
-                                    ? const Color(0xFF35B6A8)
-                                    : const Color(0xFF64D6CA),
-                                dotData: const FlDotData(show: false),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    _buildSleepAwakePeriodChart(
+                      title: _t(context, 'Noturno • Sono x Acordado', 'Night • Sleep vs Awake'),
+                      data: nightDailySummaries,
+                      subtitleColor: subtitleColor,
+                      sleepColor: isDay
+                          ? const Color(0xFF2A6CE8)
+                          : const Color(0xFF9A7CFF),
+                      awakeColor: isDay
+                          ? const Color(0xFF35B6A8)
+                          : const Color(0xFF64D6CA),
+                      emptyText: _t(context, 'Sem dados noturnos no período', 'No night data for selected period'),
+                      hoursUnit: strings.hoursUnit,
+                      sleepLabel: strings.totalSlept,
+                      awakeLabel: strings.totalAwake,
                     ),
                     const SizedBox(height: 12),
-                    _buildChartCard(
-                      title: strings.dailySleepDistribution,
-                      child: SizedBox(
-                        height: 260,
-                        child: BarChart(
-                          BarChartData(
-                            minY: 0,
-                            maxY: maxY,
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 2,
-                              getDrawingHorizontalLine: (_) => FlLine(
-                                color: subtitleColor.withValues(alpha: 0.2),
-                                strokeWidth: 1,
-                              ),
-                            ),
-                            titlesData: FlTitlesData(
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 36,
-                                  getTitlesWidget: (value, _) => Text(
-                                    '${value.toInt()}${strings.hoursUnit}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: subtitleColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              bottomTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            barGroups: bars,
-                          ),
-                        ),
-                      ),
+                    _buildSleepAwakePeriodChart(
+                      title: _t(context, 'Diurno • Sono x Acordado', 'Day • Sleep vs Awake'),
+                      data: dayDailySummaries,
+                      subtitleColor: subtitleColor,
+                      sleepColor: isDay
+                          ? const Color(0xFF4A86F8)
+                          : const Color(0xFFC3AEFF),
+                      awakeColor: isDay
+                          ? const Color(0xFF57C8B8)
+                          : const Color(0xFF82E6DB),
+                      emptyText: _t(context, 'Sem dados diurnos no período', 'No day data for selected period'),
+                      hoursUnit: strings.hoursUnit,
+                      sleepLabel: strings.totalSlept,
+                      awakeLabel: strings.totalAwake,
                     ),
                   ],
                 ),
@@ -374,11 +307,199 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  Widget _buildSleepAwakePeriodChart({
+    required String title,
+    required List<_DailySummary> data,
+    required Color subtitleColor,
+    required Color sleepColor,
+    required Color awakeColor,
+    required String emptyText,
+    required String hoursUnit,
+    required String sleepLabel,
+    required String awakeLabel,
+  }) {
+    if (data.isEmpty) {
+      return _buildChartCard(
+        title: title,
+        child: SizedBox(
+          height: 120,
+          child: Center(
+            child: Text(
+              emptyText,
+              style: TextStyle(color: subtitleColor),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final sleepSpots = <FlSpot>[];
+    final awakeSpots = <FlSpot>[];
+    double maxY = 1;
+
+    for (int i = 0; i < data.length; i++) {
+      sleepSpots.add(FlSpot(i.toDouble(), data[i].sleepHours));
+      awakeSpots.add(FlSpot(i.toDouble(), data[i].awakeHours));
+      if (data[i].sleepHours > maxY) maxY = data[i].sleepHours;
+      if (data[i].awakeHours > maxY) maxY = data[i].awakeHours;
+    }
+
+    maxY = (maxY + 1).clamp(2, 24);
+    final bottomInterval = data.length > 10 ? 2 : 1;
+
+    return _buildChartCard(
+      title: title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildChartLegend(
+            subtitleColor: subtitleColor,
+            sleepColor: sleepColor,
+            awakeColor: awakeColor,
+            sleepLabel: sleepLabel,
+            awakeLabel: awakeLabel,
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 240,
+            child: LineChart(
+              LineChartData(
+                minY: 0,
+                maxY: maxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 2,
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: subtitleColor.withValues(alpha: 0.2),
+                    strokeWidth: 1,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 36,
+                      getTitlesWidget: (value, _) => Text(
+                        '${value.toInt()}$hoursUnit',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: subtitleColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: bottomInterval.toDouble(),
+                      reservedSize: 30,
+                      getTitlesWidget: (value, _) {
+                        final idx = value.toInt();
+                        if (idx < 0 || idx >= data.length) {
+                          return const SizedBox.shrink();
+                        }
+                        if (idx % bottomInterval != 0) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            _shortDate(data[idx].date),
+                            style: TextStyle(fontSize: 10, color: subtitleColor),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: sleepSpots,
+                    isCurved: true,
+                    barWidth: 3,
+                    color: sleepColor,
+                    dotData: const FlDotData(show: false),
+                  ),
+                  LineChartBarData(
+                    spots: awakeSpots,
+                    isCurved: true,
+                    barWidth: 3,
+                    color: awakeColor,
+                    dotData: const FlDotData(show: false),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartLegend({
+    required Color subtitleColor,
+    required Color sleepColor,
+    required Color awakeColor,
+    required String sleepLabel,
+    required String awakeLabel,
+  }) {
+    return Wrap(
+      spacing: 14,
+      runSpacing: 6,
+      children: [
+        _legendItem(color: sleepColor, label: sleepLabel, subtitleColor: subtitleColor),
+        _legendItem(color: awakeColor, label: awakeLabel, subtitleColor: subtitleColor),
+      ],
+    );
+  }
+
+  Widget _legendItem({
+    required Color color,
+    required String label,
+    required Color subtitleColor,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: subtitleColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _t(BuildContext context, String pt, String en) {
+    return Localizations.localeOf(context).languageCode == 'pt' ? pt : en;
+  }
+
   Widget _buildSummaryMetric(
     String label,
     String value,
     Color textColor,
     Color subtitleColor,
+    {bool pushValueToBottom = false}
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -393,7 +514,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             label,
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subtitleColor),
           ),
-          const SizedBox(height: 4),
+          if (pushValueToBottom)
+            const Spacer()
+          else
+            const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textColor),
@@ -442,27 +566,93 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return diff.inMinutes / 60;
   }
 
-  _NightSummary? _buildLastNightSummary(List<SleepEntry> entriesNewestFirst) {
-    if (entriesNewestFirst.isEmpty) return null;
+  Future<void> _pickNightDate(
+    BuildContext context,
+    List<_NightGroup> nightGroups,
+  ) async {
+    if (nightGroups.isEmpty) return;
 
-    int start = -1;
-    for (int i = 0; i < entriesNewestFirst.length; i++) {
-      if (!entriesNewestFirst[i].isDay) {
-        start = i;
-        break;
+    final dates = nightGroups.map((g) => g.startDate).toList()
+      ..sort((a, b) => a.compareTo(b));
+
+    final initialDate = _resolveEffectiveNightDate(nightGroups, nightGroups.first.startDate) ?? nightGroups.first.startDate;
+    final locale = Localizations.localeOf(context);
+    final picked = await showDatePicker(
+      context: context,
+      locale: locale,
+      initialDate: initialDate,
+      firstDate: dates.first,
+      lastDate: dates.last,
+      selectableDayPredicate: (day) {
+        return nightGroups.any((group) => _isSameDay(group.startDate, day));
+      },
+    );
+
+    if (picked == null) return;
+
+    setState(() {
+      _selectedNightStartDate = _asDateOnly(picked);
+    });
+  }
+
+  List<_NightGroup> _buildNightGroups(List<SleepEntry> entriesNewestFirst) {
+    if (entriesNewestFirst.isEmpty) return const [];
+
+    final rawGroups = <_NightGroup>[];
+    int i = 0;
+
+    while (i < entriesNewestFirst.length) {
+      if (entriesNewestFirst[i].isDay) {
+        i++;
+        continue;
       }
-    }
-    if (start == -1) return null;
 
-    final indices = <int>[];
-    for (int i = start; i < entriesNewestFirst.length; i++) {
-      if (!entriesNewestFirst[i].isDay) {
+      final indices = <int>[];
+      while (i < entriesNewestFirst.length && !entriesNewestFirst[i].isDay) {
         indices.add(i);
-      } else {
-        break;
+        i++;
+      }
+
+      final startDate = _extractNightStartDate(entriesNewestFirst, indices);
+      final summary = _buildNightSummary(entriesNewestFirst, indices);
+      if (startDate != null && summary != null) {
+        rawGroups.add(_NightGroup(startDate: startDate, summary: summary));
       }
     }
+
+    final byDate = <String, _NightGroup>{};
+    for (final group in rawGroups) {
+      final key = '${group.startDate.year}-${group.startDate.month}-${group.startDate.day}';
+      byDate.putIfAbsent(key, () => group);
+    }
+
+    return byDate.values.toList();
+  }
+
+  DateTime? _extractNightStartDate(
+    List<SleepEntry> entriesNewestFirst,
+    List<int> indices,
+  ) {
+    DateTime? anchor;
+    for (final idx in indices) {
+      final entry = entriesNewestFirst[idx];
+      final candidate = entry.slept ?? entry.wokeUp;
+      if (candidate == null) continue;
+      if (anchor == null || candidate.isBefore(anchor)) {
+        anchor = candidate;
+      }
+    }
+    if (anchor == null) return null;
+    return _asDateOnly(anchor);
+  }
+
+  _NightSummary? _buildNightSummary(
+    List<SleepEntry> entriesNewestFirst,
+    List<int> indices,
+  ) {
     if (indices.isEmpty) return null;
+
+    final indexSet = indices.toSet();
 
     double totalSleep = 0;
     double totalAwake = 0;
@@ -483,7 +673,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (entry.wokeUp != null) {
         wakeCount++;
       }
-      if (idx - 1 >= 0 && indices.contains(idx - 1)) {
+      if (idx - 1 >= 0 && indexSet.contains(idx - 1)) {
         final newer = entriesNewestFirst[idx - 1];
         if (newer.slept != null && entry.wokeUp != null) {
           final diff = newer.slept!.difference(entry.wokeUp!);
@@ -508,11 +698,82 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  DateTime? _resolveEffectiveNightDate(
+    List<_NightGroup> nightGroups,
+    DateTime? fallback,
+  ) {
+    if (_selectedNightStartDate == null) return fallback;
+
+    final selected = _selectedNightStartDate!;
+    final exists = nightGroups.any((group) => _isSameDay(group.startDate, selected));
+    return exists ? selected : fallback;
+  }
+
+  _NightGroup? _findNightGroupByDate(List<_NightGroup> nightGroups, DateTime date) {
+    for (final group in nightGroups) {
+      if (_isSameDay(group.startDate, date)) {
+        return group;
+      }
+    }
+    return null;
+  }
+
+  DateTime _asDateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _formatNightDateLabel(DateTime date, BuildContext context) {
+    final locale = Localizations.localeOf(context).languageCode == 'pt' ? 'pt_BR' : 'en';
+    return DateFormat('dd-MMM', locale).format(date);
+  }
+
   String _formatHours(double hours) {
     final totalMinutes = (hours * 60).round();
     final h = totalMinutes ~/ 60;
     final m = totalMinutes % 60;
     return '$h:${m.toString().padLeft(2, '0')}';
+  }
+
+  List<_DailySummary> _buildDailySummaries(List<SleepEntry> filtered) {
+    if (filtered.isEmpty) return const [];
+
+    final chronological = List<SleepEntry>.from(filtered)
+      ..sort((a, b) {
+        final aDate = a.slept ?? a.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = b.slept ?? b.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return aDate.compareTo(bDate);
+      });
+
+    final byDay = <String, _DailySummary>{};
+
+    for (int i = 0; i < chronological.length; i++) {
+      final entry = chronological[i];
+      final anchor = entry.slept ?? entry.wokeUp;
+      if (anchor == null) continue;
+      final day = _asDateOnly(anchor);
+      final key = '${day.year}-${day.month}-${day.day}';
+
+      final current = byDay[key] ?? _DailySummary(date: day, sleepHours: 0, awakeHours: 0, wakeUps: 0);
+      final sleep = _sleepHours(entry);
+      final awake = _awakeHours(chronological, i);
+
+      byDay[key] = _DailySummary(
+        date: day,
+        sleepHours: current.sleepHours + sleep,
+        awakeHours: current.awakeHours + awake,
+        wakeUps: current.wakeUps + (entry.wokeUp != null ? 1 : 0),
+      );
+    }
+
+    final result = byDay.values.toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    return result;
+  }
+
+  String _shortDate(DateTime date) {
+    return DateFormat('dd/MM').format(date);
   }
 }
 
@@ -531,5 +792,26 @@ class _NightSummary {
     required this.maxSleepBlock,
     required this.avgSleepBlock,
     required this.avgAwakeBlock,
+  });
+}
+
+class _NightGroup {
+  final DateTime startDate;
+  final _NightSummary summary;
+
+  _NightGroup({required this.startDate, required this.summary});
+}
+
+class _DailySummary {
+  final DateTime date;
+  final double sleepHours;
+  final double awakeHours;
+  final int wakeUps;
+
+  const _DailySummary({
+    required this.date,
+    required this.sleepHours,
+    required this.awakeHours,
+    required this.wakeUps,
   });
 }
