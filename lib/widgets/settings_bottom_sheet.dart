@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../l10n/localized_strings.dart';
 import '../providers/app_provider.dart';
+import '../screens/baby_onboarding_screen.dart';
 import '../services/firebase_service.dart';
 
 class SettingsBottomSheet extends StatefulWidget {
@@ -208,7 +209,29 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
 
               const SizedBox(height: 24),
               Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
-              
+
+              // Baby Profile
+              ListTile(
+                leading: Icon(Icons.child_care, color: textColor),
+                title: Text(
+                  provider.locale.languageCode == 'pt'
+                      ? 'Perfil do Bebê'
+                      : 'Baby Profile',
+                  style: TextStyle(color: textColor),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BabyOnboardingScreen(isEditing: true),
+                    ),
+                  );
+                },
+              ),
+
+              Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+
               // Import/Export CSV
               /* 
               ListTile(

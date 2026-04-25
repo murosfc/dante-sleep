@@ -1,8 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/app_provider.dart';
 import '../services/firebase_service.dart';
 import 'auth_screen.dart';
+import 'baby_onboarding_screen.dart';
 import 'main_screen.dart';
 
 class AuthGate extends StatelessWidget {
@@ -18,7 +21,17 @@ class AuthGate extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
-          return const MainScreen();
+          return Consumer<AppProvider>(
+            builder: (ctx, provider, _) {
+              if (!provider.babyProfileLoaded) {
+                return const _AuthLoadingScreen();
+              }
+              if (provider.babyProfile == null) {
+                return const BabyOnboardingScreen();
+              }
+              return const MainScreen();
+            },
+          );
         }
 
         return const AuthScreen();
@@ -33,9 +46,7 @@ class _AuthLoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

@@ -3,10 +3,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/localized_strings.dart';
+import '../models/ai_suggestion.dart';
 import '../providers/app_provider.dart';
 import '../services/firebase_service.dart';
 import '../widgets/settings_bottom_sheet.dart';
 import 'analytics_screen.dart';
+import 'baby_onboarding_screen.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -27,6 +29,42 @@ class MainScreen extends StatelessWidget {
           appBar: AppBar(
             title: Text(strings.appTitle),
             actions: [
+              // Bell icon with badge
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () {
+                      provider.markAiSuggestionsRead();
+                      _showAiSuggestionsDialog(context, provider, strings, isDay, textColor, subtitleColor);
+                    },
+                  ),
+                  if (provider.hasPendingAiNotifications)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE53935),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${provider.aiUnreadCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               IconButton(
                 icon: const Icon(Icons.settings),
                 onPressed: () {
@@ -171,6 +209,14 @@ class MainScreen extends StatelessWidget {
                     // ),
                   ],
                 ),
+              ),
+              // AI Suggestions Card
+              _AiSuggestionsCard(
+                provider: provider,
+                strings: strings,
+                isDay: isDay,
+                textColor: textColor,
+                subtitleColor: subtitleColor,
               ),
               Expanded(
                 // Table view branch temporarily disabled. Keep card view only.
@@ -819,6 +865,438 @@ class MainScreen extends StatelessWidget {
             color: textColor,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAiSuggestionsDialog(
+    BuildContext context,
+    AppProvider provider,
+    LocalizedStrings strings,
+    bool isDay,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _AiSuggestionsBottomSheet(
+        provider: provider,
+        strings: strings,
+        isDay: isDay,
+        textColor: textColor,
+        subtitleColor: subtitleColor,
+      ),
+    );
+  }
+}
+
+/// Small inline card shown above the list
+class _AiSuggestionsCard extends StatelessWidget {
+  final AppProvider provider;
+  final LocalizedStrings strings;
+  final bool isDay;
+  final Color textColor;
+  final Color subtitleColor;
+
+  const _AiSuggestionsCard({
+    required this.provider,
+    required this.strings,
+    required this.isDay,
+    required this.textColor,
+    required this.subtitleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ai = provider.aiSuggestion;
+    final hasKey = provider.babyProfile?.geminiApiKey?.isNotEmpty == true;
+
+    if (!hasKey) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+        child: InkWell(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const BabyOnboardingScreen(isEditing: true),
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDay ? const Color(0xFFF0F4FF) : const Color(0xFF1A1030),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDay ? const Color(0xFFCCD6F0) : const Color(0xFF2A1B3E),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF9A7CFF)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    provider.locale.languageCode == 'pt'
+                        ? 'Adicione a Chave API Gemini no Perfil do Bebê para ativar a IA'
+                        : 'Add Gemini API Key in Baby Profile to enable AI suggestions',
+                    style: const TextStyle(
+                      color: Color(0xFF9A7CFF),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.chevron_right, size: 18, color: Color(0xFF9A7CFF)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (ai == null) return const SizedBox.shrink();
+
+    if (ai.isLoading) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDay ? const Color(0xFFF0F4FF) : const Color(0xFF1A1030),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF9A7CFF)),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                provider.locale.languageCode == 'pt'
+                    ? 'Analisando dados de sono…'
+                    : 'Analyzing sleep data…',
+                style: const TextStyle(color: Color(0xFF9A7CFF), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (ai.error != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDay ? const Color(0xFFFFF0F0) : const Color(0xFF1A1015),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.error_outline, size: 18, color: Color(0xFFE57373)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  provider.locale.languageCode == 'pt'
+                      ? 'Não foi possível gerar sugestões'
+                      : 'Could not generate suggestions',
+                  style: const TextStyle(color: Color(0xFFE57373), fontSize: 12),
+                ),
+              ),
+              TextButton(
+                onPressed: provider.refreshAiSuggestions,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  provider.locale.languageCode == 'pt' ? 'Tentar' : 'Retry',
+                  style: const TextStyle(color: Color(0xFF9A7CFF), fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!ai.hasContent) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: InkWell(
+        onTap: () {
+          provider.markAiSuggestionsRead();
+          showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (_) => _AiSuggestionsBottomSheet(
+              provider: provider,
+              strings: strings,
+              isDay: isDay,
+              textColor: textColor,
+              subtitleColor: subtitleColor,
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDay ? const Color(0xFFF0F0FF) : const Color(0xFF1A1030),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF4A2A72),
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF9A7CFF)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (ai.nextNapTime != null)
+                      Text(
+                        '${provider.locale.languageCode == 'pt' ? 'Próxima soneca' : 'Next nap'}: ${ai.nextNapTime}',
+                        style: const TextStyle(
+                          color: Color(0xFFEADFFF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    if (ai.bedtimeRoutineStart != null) ...[
+                      if (ai.nextNapTime != null) const SizedBox(height: 2),
+                      Text(
+                        '${provider.locale.languageCode == 'pt' ? 'Iniciar rotina' : 'Start routine'}: ${ai.bedtimeRoutineStart}',
+                        style: const TextStyle(
+                          color: Color(0xFFEADFFF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, size: 18, color: Color(0xFF9A7CFF)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full bottom sheet with rationale details
+class _AiSuggestionsBottomSheet extends StatelessWidget {
+  final AppProvider provider;
+  final LocalizedStrings strings;
+  final bool isDay;
+  final Color textColor;
+  final Color subtitleColor;
+
+  const _AiSuggestionsBottomSheet({
+    required this.provider,
+    required this.strings,
+    required this.isDay,
+    required this.textColor,
+    required this.subtitleColor,
+  });
+
+  bool get _isPt => provider.locale.languageCode == 'pt';
+  String _t(String pt, String en) => _isPt ? pt : en;
+
+  @override
+  Widget build(BuildContext context) {
+    final ai = provider.aiSuggestion;
+    final bgColor = isDay ? Colors.white : const Color(0xFF1D1130);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Color(0xFF9A7CFF), size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  _t('Sugestões IA', 'AI Suggestions'),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    provider.refreshAiSuggestions();
+                  },
+                  icon: const Icon(Icons.refresh, size: 16, color: Color(0xFF9A7CFF)),
+                  label: Text(
+                    _t('Atualizar', 'Refresh'),
+                    style: const TextStyle(color: Color(0xFF9A7CFF), fontSize: 13),
+                  ),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (ai == null || ai.isLoading)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const CircularProgressIndicator(color: Color(0xFF9A7CFF)),
+                      const SizedBox(height: 12),
+                      Text(
+                        _t('Analisando dados de sono…', 'Analyzing sleep data…'),
+                        style: TextStyle(color: subtitleColor),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (ai.error != null)
+              Text(
+                _t('Não foi possível gerar sugestões.', 'Could not generate suggestions.'),
+                style: const TextStyle(color: Color(0xFFE57373)),
+              )
+            else ...[
+              if (ai.nextNapTime != null)
+                _SuggestionTile(
+                  icon: Icons.bedtime_outlined,
+                  title: _t('Próxima soneca', 'Next nap'),
+                  time: ai.nextNapTime!,
+                  rationale: ai.nextNapRationale,
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                ),
+              if (ai.bedtimeRoutineStart != null) ...[
+                if (ai.nextNapTime != null) const SizedBox(height: 12),
+                _SuggestionTile(
+                  icon: Icons.nights_stay_outlined,
+                  title: _t('Iniciar rotina noturna', 'Start night routine'),
+                  time: ai.bedtimeRoutineStart!,
+                  rationale: ai.bedtimeRationale,
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                ),
+              ],
+              if (ai.generatedAt != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _t(
+                    'Gerado às ${_fmtTime(ai.generatedAt!)}',
+                    'Generated at ${_fmtTime(ai.generatedAt!)}',
+                  ),
+                  style: TextStyle(color: subtitleColor, fontSize: 11),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _fmtTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+}
+
+class _SuggestionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String time;
+  final String? rationale;
+  final Color textColor;
+  final Color subtitleColor;
+
+  const _SuggestionTile({
+    required this.icon,
+    required this.title,
+    required this.time,
+    this.rationale,
+    required this.textColor,
+    required this.subtitleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1030),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2A1B3E)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2A1B3E),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF9A7CFF), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(
+                  time,
+                  style: const TextStyle(
+                    color: Color(0xFFEADFFF),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (rationale != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    rationale!,
+                    style: TextStyle(color: subtitleColor, fontSize: 12, height: 1.4),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

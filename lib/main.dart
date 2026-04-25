@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -7,13 +8,20 @@ import 'providers/app_provider.dart';
 import 'screens/auth_gate.dart';
 import 'screens/main_screen.dart';
 import 'services/firebase_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Load .env
+  await dotenv.load(fileName: '.env');
+
   // Initialize Firebase
   await FirebaseService().initialize();
   
+  // Initialize local notifications
+  await NotificationService.initialize();
+
   final provider = AppProvider();
   await provider.loadData();
   runApp(MyApp(provider: provider));

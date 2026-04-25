@@ -282,4 +282,27 @@ class FirebaseService {
       rethrow;
     }
   }
+
+  // ─── Baby profile ──────────────────────────────────────────────────────────
+  Future<void> saveBabyData(String userId, Map<String, dynamic> data) async {
+    try {
+      await firestore.collection('users').doc(userId).set(
+        {'baby_data': data, 'updatedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getBabyData(String userId) async {
+    try {
+      final doc = await firestore.collection('users').doc(userId).get();
+      final data = doc.data();
+      if (data == null || !data.containsKey('baby_data')) return null;
+      return Map<String, dynamic>.from(data['baby_data'] as Map);
+    } catch (_) {
+      return null;
+    }
+  }
 }

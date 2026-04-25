@@ -10,14 +10,35 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/ai_suggestion.dart';
+import '../models/baby_profile.dart';
 import '../models/entry.dart';
 import '../models/sync_queue_item.dart';
 import '../services/firebase_service.dart';
+import '../services/gemini_service.dart';
+import '../services/notification_service.dart';
 
 class AppProvider with ChangeNotifier {
   List<SleepEntry> entries = [];
   List<SyncQueueItem> _syncQueue = [];
   bool _isMigratingData = false;
+
+  // ─── Baby profile & AI ────────────────────────────────────────────────────
+  BabyProfile? babyProfile;
+  bool babyProfileLoaded = false;
+  AiSuggestion? aiSuggestion;
+  int get aiUnreadCount {
+    if (aiSuggestion == null || !aiSuggestion!.hasContent) return 0;
+    return (aiSuggestion!.nextNapTime != null ? 1 : 0) +
+        (aiSuggestion!.bedtimeRoutineStart != null ? 1 : 0);
+  }
+  bool _aiSuggestionsRead = false;
+  bool get hasPendingAiNotifications =>
+      !_aiSuggestionsRead && aiUnreadCount > 0;
+  void markAiSuggestionsRead() {
+    _aiSuggestionsRead = true;
+    notifyListeners();
+  }
 
   bool get isDormiu {
     if (entries.isEmpty) return true;
@@ -37,102 +58,143 @@ class AppProvider with ChangeNotifier {
 
   Future<void> loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    
     final user = FirebaseService().currentUser;
     final uidKey = user != null ? '_${user.uid}' : '';
 
-    // Load entries from local storage
-    String? entriesJson = prefs.getString('entries$uidKey');
-    
-    // Migration for existing users that update the app
-    if (entriesJson == null && user != null) {
-      entriesJson = prefs.getString('entries');
-      if (entriesJson != null) {
-        prefs.setString('entries$uidKey', entriesJson);
-        prefs.remove('entries'); // Clean up old global key
-      }
-    }
-
-    if (entriesJson != null) {
-      List<dynamic> list = jsonDecode(entriesJson);
-      entries = list.map((e) => SleepEntry.fromJson(e)).toList();
-    }
-
-    // Load sync queue
+    // Load only sync queue locally (entries come from Firestore)
     await _loadSyncQueue();
 
-    // Try to load settings and entries from Firestore first
-    try {
-      final user = FirebaseService().currentUser;
-      if (user != null) {
+    if (user != null) {
+      // Load settings + entries + baby profile from Firestore
+      try {
         await loadSettingsFromCurrentUser();
-        return; // Successfully loaded from Firestore
+        return;
+      } catch (_) {
+        // Fall through to local settings fallback
       }
-    } catch (_) {
-      // Silently fall through to SharedPreferences
     }
 
-    // Fallback: load from SharedPreferences
+    // No user or Firestore unavailable — load prefs only
     is24Hour = prefs.getBool('is24Hour$uidKey') ?? true;
-    isTableView = false;
-    String lang = prefs.getString('language$uidKey') ?? 
+    String lang = prefs.getString('language$uidKey') ??
         (ui.PlatformDispatcher.instance.locale.languageCode == 'en' ? 'en' : 'pt');
     locale = Locale(lang);
-    
     DateTime now = DateTime.now();
     isDay = now.hour >= 6 && now.hour < 18;
+    babyProfileLoaded = true;
     notifyListeners();
   }
 
   Future<void> loadSettingsFromCurrentUser() async {
     try {
       final user = FirebaseService().currentUser;
-      if (user != null) {
-        final firestoreSettings = await FirebaseService().getSettings(user.uid);
-        if (firestoreSettings.isNotEmpty) {
-          is24Hour = firestoreSettings['timeFormat24h'] ?? true;
-          String lang = firestoreSettings['language'] ?? 
-              (ui.PlatformDispatcher.instance.locale.languageCode == 'en' ? 'en' : 'pt');
-          locale = Locale(lang);
-        }
-        
-        // Load entries from Firestore
-        final entriesData = await FirebaseService().getSleepEntries(user.uid);
-        if (entriesData.isNotEmpty) {
-           final List<SleepEntry> loadedEntries = [];
-           entriesData.forEach((id, entryData) {
-             try {
-                final entry = SleepEntry.fromJson(Map<String, dynamic>.from(entryData));
-                entry.firestoreId = id;
-                entry.syncStatus = 'synced';
-                loadedEntries.add(entry);
-             } catch (e) {
-                debugPrint('Error parsing entry $id: $e');
-             }
-           });
-           
-           // Sort by slept time (newest first)
-           loadedEntries.sort((a, b) {
-             if (a.slept == null && b.slept == null) return 0;
-             if (a.slept == null) return 1;
-             if (b.slept == null) return -1;
-             return b.slept!.compareTo(a.slept!);
-           });
-           
-           entries = loadedEntries;
-           await saveData();
-        }
-
+      if (user == null) {
+        babyProfileLoaded = true;
         notifyListeners();
-        
-        // Trigger migration of old entries
-        await _migrateOldEntriesToFirestore();
-        
-        // Trigger sync of any pending operations
-        await _syncToFirestore();
+        return;
+      }
+
+      // 1. Settings
+      final firestoreSettings = await FirebaseService().getSettings(user.uid);
+      if (firestoreSettings.isNotEmpty) {
+        is24Hour = firestoreSettings['timeFormat24h'] ?? true;
+        final lang = (firestoreSettings['language'] as String?) ??
+            (ui.PlatformDispatcher.instance.locale.languageCode == 'en' ? 'en' : 'pt');
+        locale = Locale(lang);
+      }
+
+      // 2. Entries — Firestore is the ONLY source of truth
+      final entriesData = await FirebaseService().getSleepEntries(user.uid);
+      final loaded = <SleepEntry>[];
+      entriesData.forEach((id, entryData) {
+        try {
+          final entry =
+              SleepEntry.fromJson(Map<String, dynamic>.from(entryData as Map));
+          entry.firestoreId = id;
+          entry.syncStatus = 'synced';
+          loaded.add(entry);
+        } catch (e) {
+          debugPrint('Error parsing entry $id: $e');
+        }
+      });
+      loaded.sort((a, b) {
+        if (a.slept == null && b.slept == null) return 0;
+        if (a.slept == null) return 1;
+        if (b.slept == null) return -1;
+        return b.slept!.compareTo(a.slept!);
+      });
+      entries = loaded;
+
+      // 3. Baby profile
+      final babyData = await FirebaseService().getBabyData(user.uid);
+      babyProfile = babyData != null ? BabyProfile.fromFirestore(babyData) : null;
+      babyProfileLoaded = true;
+
+      notifyListeners();
+
+      // 4. Migration (legacy local → Firestore) + pending sync
+      await _migrateOldEntriesToFirestore();
+      await _syncToFirestore();
+
+      // 5. Refresh AI suggestions if API key is configured
+      if (babyProfile?.geminiApiKey?.isNotEmpty == true) {
+        refreshAiSuggestions();
       }
     } catch (e) {
       debugPrint('Error loading settings from current user: $e');
+      babyProfileLoaded = true;
+      notifyListeners();
+    }
+  }
+
+  // ─── Baby profile ──────────────────────────────────────────────────────────
+  Future<void> saveBabyProfile(BabyProfile profile) async {
+    babyProfile = profile;
+    babyProfileLoaded = true;
+    notifyListeners();
+    try {
+      final user = FirebaseService().currentUser;
+      if (user != null) {
+        await FirebaseService().saveBabyData(user.uid, profile.toFirestore());
+      }
+    } catch (e) {
+      debugPrint('Error saving baby profile: $e');
+    }
+  }
+
+  // ─── AI suggestions ────────────────────────────────────────────────────────
+  Future<void> refreshAiSuggestions() async {
+    final profile = babyProfile;
+    final apiKey = profile?.geminiApiKey ?? '';
+    if (apiKey.trim().isEmpty) return;
+
+    _aiSuggestionsRead = false;
+    aiSuggestion = const AiSuggestion.loading();
+    notifyListeners();
+
+    final result = await GeminiService.getSuggestions(
+      apiKey: apiKey,
+      profile: profile!,
+      entries: entries,
+      languageCode: locale.languageCode,
+    );
+
+    aiSuggestion = result;
+    notifyListeners();
+
+    // Schedule local notifications for the suggested times
+    if (result != null && result.error == null) {
+      try {
+        await NotificationService.scheduleAiSuggestions(
+          napTime: result.nextNapTime,
+          napRationale: result.nextNapRationale,
+          routineStart: result.bedtimeRoutineStart,
+          routineRationale: result.bedtimeRationale,
+          isPt: locale.languageCode == 'pt',
+        );
+      } catch (e) {
+        debugPrint('NotificationService error: $e');
+      }
     }
   }
 
@@ -143,13 +205,12 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Persists only user preferences (settings) locally.
+  /// Entries are NOT stored locally — Firestore is the single source of truth.
   Future<void> saveData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     final user = FirebaseService().currentUser;
     final uidKey = user != null ? '_${user.uid}' : '';
-    
-    String entriesJson = jsonEncode(entries.map((e) => e.toJson()).toList());
-    await prefs.setString('entries$uidKey', entriesJson);
     await prefs.setBool('is24Hour$uidKey', is24Hour);
     await prefs.setBool('isTableView$uidKey', isTableView);
     await prefs.setString('language$uidKey', locale.languageCode);
@@ -158,7 +219,6 @@ class AppProvider with ChangeNotifier {
   void togglePeriod() {
     isDay = !isDay;
     notifyListeners();
-    saveData();
   }
 
   void toggleButton() {
@@ -182,8 +242,9 @@ class AppProvider with ChangeNotifier {
       }
     }
     notifyListeners();
-    saveData();
     _syncToFirestore();
+    // Refresh AI suggestions after every sleep event
+    refreshAiSuggestions();
   }
 
   void toggleBottle() {
@@ -192,7 +253,6 @@ class AppProvider with ChangeNotifier {
       entries[0].syncStatus = 'pending';
       entries[0].updatedAt = DateTime.now();
       notifyListeners();
-      saveData();
       _addToSyncQueue('update', entries[0]);
       _syncToFirestore();
     }
@@ -201,13 +261,10 @@ class AppProvider with ChangeNotifier {
   void editBottleTime(int index, DateTime? newTime) {
     if (index >= 0 && index < entries.length) {
       entries[index].bottleTime = newTime;
-      if (newTime != null) {
-        entries[index].bottle = true;
-      }
+      if (newTime != null) entries[index].bottle = true;
       entries[index].syncStatus = 'pending';
       entries[index].updatedAt = DateTime.now();
       notifyListeners();
-      saveData();
       _addToSyncQueue('update', entries[index]);
       _syncToFirestore();
     }
@@ -224,7 +281,6 @@ class AppProvider with ChangeNotifier {
       entries[selectedIndex!].syncStatus = 'pending';
       entries[selectedIndex!].updatedAt = DateTime.now();
       notifyListeners();
-      saveData();
       _addToSyncQueue('update', entries[selectedIndex!]);
       _syncToFirestore();
     }
@@ -236,7 +292,6 @@ class AppProvider with ChangeNotifier {
       entries[index].syncStatus = 'pending';
       entries[index].updatedAt = DateTime.now();
       notifyListeners();
-      saveData();
       _addToSyncQueue('update', entries[index]);
       _syncToFirestore();
     }
@@ -248,7 +303,6 @@ class AppProvider with ChangeNotifier {
       entries[index].syncStatus = 'pending';
       entries[index].updatedAt = DateTime.now();
       notifyListeners();
-      saveData();
       _addToSyncQueue('update', entries[index]);
       _syncToFirestore();
     }
@@ -258,7 +312,6 @@ class AppProvider with ChangeNotifier {
     if (index >= 0 && index < entries.length) {
       entries[index].isExpanded = !entries[index].isExpanded;
       notifyListeners();
-      saveData();
     }
   }
 
@@ -267,7 +320,6 @@ class AppProvider with ChangeNotifier {
     entries[index].syncStatus = 'pending';
     entries[index].updatedAt = DateTime.now();
     notifyListeners();
-    saveData();
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
   }
@@ -277,7 +329,6 @@ class AppProvider with ChangeNotifier {
     entries[index].syncStatus = 'pending';
     entries[index].updatedAt = DateTime.now();
     notifyListeners();
-    saveData();
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
   }
@@ -299,7 +350,7 @@ class AppProvider with ChangeNotifier {
   void toggleViewMode() {
     isTableView = !isTableView;
     notifyListeners();
-    saveData();
+    saveData(); // Settings only, fine to persist locally
   }
 
   Future<String> exportCsv({
@@ -444,10 +495,7 @@ class AppProvider with ChangeNotifier {
       selectedIndex = null;
 
       notifyListeners();
-      saveData();
-      
       _syncImportedEntries(importedEntries);
-      
       return importedEntries.length;
     } catch (e) {
       debugPrint('Error importing CSV: $e');
@@ -498,7 +546,6 @@ class AppProvider with ChangeNotifier {
       entries.removeAt(index);
       selectedIndex = null;
       notifyListeners();
-      saveData();
       if (entry.firestoreId != null) {
         _addToSyncQueue('delete', entry);
       }
