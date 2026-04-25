@@ -115,6 +115,8 @@ class NotificationService {
       body,
       tz.TZDateTime.from(scheduledTime, tz.local),
       details,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
