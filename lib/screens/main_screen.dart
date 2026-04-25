@@ -18,6 +18,7 @@ class MainScreen extends StatelessWidget {
         final provider = Provider.of<AppProvider>(context);
         final strings = LocalizedStrings(context);
         final isVisualDay = provider.isVisualDay;
+        final isDay = isVisualDay;
         final isDayPeriod = provider.isDay;
         final textColor = isVisualDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
         final subtitleColor = isVisualDay
