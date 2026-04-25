@@ -70,8 +70,7 @@ class AppProvider with ChangeNotifier {
   bool get isVisualDay {
     if (visualThemeMode == 'day') return true;
     if (visualThemeMode == 'night') return false;
-    final now = DateTime.now();
-    return now.hour >= 6 && now.hour < 18;
+    return isDay; // auto: follows the day/night period button
   }
 
   static Locale _systemDefaultLocale() {
