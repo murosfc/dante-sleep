@@ -78,7 +78,7 @@ class AppStrings {
   static const String dailySleepDistribution = 'Daily sleep distribution';
   static const String hoursUnit = 'h';
   static const String noDataForPeriod = 'No data for selected period';
-  static const String lastNightSummary = 'Last Night Summary';
+  static const String lastNightSummary = 'Summary of Night';
   static const String totalSlept = 'Total Slept';
   static const String totalAwake = 'Total Awake';
   static const String wakeUps = 'Woke up';
@@ -193,7 +193,7 @@ class AppStringsPortuguese {
   static const String dailySleepDistribution = 'Distribuição diária de sono';
   static const String hoursUnit = 'h';
   static const String noDataForPeriod = 'Sem dados para o período selecionado';
-  static const String lastNightSummary = 'Resumo da Última Noite';
+  static const String lastNightSummary = 'Resumo da noite de';
   static const String totalSlept = 'Total Dormido';
   static const String totalAwake = 'Total Acordado';
   static const String wakeUps = 'Acordou';

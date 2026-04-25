@@ -58,7 +58,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Row(
                 children: [
                   Text(
-                    '${strings.lastNightSummary} ${_formatNightDateLabel(effectiveNightDate, context)}',
+                    strings.lastNightSummary,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
@@ -86,12 +86,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             Card(
               child: ExpansionTile(
                 initiallyExpanded: true,
-                title: Text(
-                  strings.lastNightSummary,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
+                title: Row(
+                  children: [
+                    Text(
+                      strings.lastNightSummary,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                    if (effectiveNightDate != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatNightDateLabel(effectiveNightDate, context),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w400,
+                          color: subtitleColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 iconColor: textColor,
                 collapsedIconColor: textColor,
@@ -137,8 +152,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                     strings.wakeUps,
                                     '${nightSummary.wakeCount} ${strings.timesUnit}',
                                     textColor,
-                                    subtitleColor,
-                                    pushValueToBottom: true,
+                                  subtitleColor,
                                   ),
                                 ),
                               ],
@@ -498,8 +512,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     String label,
     String value,
     Color textColor,
-    Color subtitleColor,
-    {bool pushValueToBottom = false}
+    Color subtitleColor
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -514,10 +527,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             label,
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subtitleColor),
           ),
-          if (pushValueToBottom)
-            const Spacer()
-          else
-            const SizedBox(height: 4),
+          const Spacer(),
           Text(
             value,
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textColor),
