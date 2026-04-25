@@ -149,67 +149,73 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   else
                     Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildSummaryMetric(
-                                strings.totalSlept,
-                                _formatHours(nightSummary.totalSleepHours),
-                                textColor,
-                                subtitleColor,
-                              ),
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.totalSlept,
+                                    _formatHours(nightSummary.totalSleepHours),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.totalAwake,
+                                    _formatHours(nightSummary.totalAwakeHours),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.wakeUps,
+                                    '${nightSummary.wakeCount} ${strings.timesUnit}',
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildSummaryMetric(
-                                strings.totalAwake,
-                                _formatHours(nightSummary.totalAwakeHours),
-                                textColor,
-                                subtitleColor,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildSummaryMetric(
-                                strings.wakeUps,
-                                '${nightSummary.wakeCount} ${strings.timesUnit}',
-                                textColor,
-                                subtitleColor,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildSummaryMetric(
-                                strings.averageSleep,
-                                _formatHours(nightSummary.avgSleepBlock),
-                                textColor,
-                                subtitleColor,
-                              ),
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.averageSleep,
+                                    _formatHours(nightSummary.avgSleepBlock),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.averageAwake,
+                                    _formatHours(nightSummary.avgAwakeBlock),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildSummaryMetric(
+                                    strings.maxSleep,
+                                    _formatHours(nightSummary.maxSleepBlock),
+                                    textColor,
+                                    subtitleColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildSummaryMetric(
-                                strings.averageAwake,
-                                _formatHours(nightSummary.avgAwakeBlock),
-                                textColor,
-                                subtitleColor,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildSummaryMetric(
-                                strings.maxSleep,
-                                _formatHours(nightSummary.maxSleepBlock),
-                                textColor,
-                                subtitleColor,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
                       ],
                     ),
                 ],

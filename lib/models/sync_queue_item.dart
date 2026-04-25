@@ -1,9 +1,9 @@
-import 'package:intl/intl.dart';
+
 
 class SyncQueueItem {
   final String id;
   final String operation; // 'create', 'update', 'delete'
-  final String entryId; // ID do entry no Firestore (null se create)
+  String entryId; // ID do entry no Firestore (null se create)
   final Map<String, dynamic> data;
   final DateTime createdAt;
   String status; // 'pending', 'syncing', 'synced', 'failed'

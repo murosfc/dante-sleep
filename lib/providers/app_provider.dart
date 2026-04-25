@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
@@ -29,14 +30,29 @@ class AppProvider with ChangeNotifier {
   bool isDay = true;
   bool is24Hour = true;
   bool isTableView = false;
-  Locale locale = const Locale('en');
+  Locale locale = ui.PlatformDispatcher.instance.locale.languageCode == 'en' 
+      ? const Locale('en') 
+      : const Locale('pt');
   int? selectedIndex;
 
   Future<void> loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     
-    // Load entries from local storage (will be migrated in this PR)
-    String? entriesJson = prefs.getString('entries');
+    final user = FirebaseService().currentUser;
+    final uidKey = user != null ? '_${user.uid}' : '';
+
+    // Load entries from local storage
+    String? entriesJson = prefs.getString('entries$uidKey');
+    
+    // Migration for existing users that update the app
+    if (entriesJson == null && user != null) {
+      entriesJson = prefs.getString('entries');
+      if (entriesJson != null) {
+        prefs.setString('entries$uidKey', entriesJson);
+        prefs.remove('entries'); // Clean up old global key
+      }
+    }
+
     if (entriesJson != null) {
       List<dynamic> list = jsonDecode(entriesJson);
       entries = list.map((e) => SleepEntry.fromJson(e)).toList();
@@ -45,31 +61,22 @@ class AppProvider with ChangeNotifier {
     // Load sync queue
     await _loadSyncQueue();
 
-    // Try to load settings from Firestore first
+    // Try to load settings and entries from Firestore first
     try {
       final user = FirebaseService().currentUser;
       if (user != null) {
-        final firestoreSettings = await FirebaseService().getSettings(user.uid);
-        if (firestoreSettings.isNotEmpty) {
-          is24Hour = firestoreSettings['timeFormat24h'] ?? true;
-          String lang = firestoreSettings['language'] ?? 'en';
-          locale = Locale(lang);
-          
-          // Trigger migration of old entries
-          await _migrateOldEntriesToFirestore();
-          
-          notifyListeners();
-          return; // Successfully loaded from Firestore
-        }
+        await loadSettingsFromCurrentUser();
+        return; // Successfully loaded from Firestore
       }
     } catch (_) {
       // Silently fall through to SharedPreferences
     }
 
     // Fallback: load from SharedPreferences
-    is24Hour = prefs.getBool('is24Hour') ?? true;
+    is24Hour = prefs.getBool('is24Hour$uidKey') ?? true;
     isTableView = false;
-    String lang = prefs.getString('language') ?? 'en';
+    String lang = prefs.getString('language$uidKey') ?? 
+        (ui.PlatformDispatcher.instance.locale.languageCode == 'en' ? 'en' : 'pt');
     locale = Locale(lang);
     
     DateTime now = DateTime.now();
@@ -84,10 +91,39 @@ class AppProvider with ChangeNotifier {
         final firestoreSettings = await FirebaseService().getSettings(user.uid);
         if (firestoreSettings.isNotEmpty) {
           is24Hour = firestoreSettings['timeFormat24h'] ?? true;
-          String lang = firestoreSettings['language'] ?? 'en';
+          String lang = firestoreSettings['language'] ?? 
+              (ui.PlatformDispatcher.instance.locale.languageCode == 'en' ? 'en' : 'pt');
           locale = Locale(lang);
-          notifyListeners();
         }
+        
+        // Load entries from Firestore
+        final entriesData = await FirebaseService().getSleepEntries(user.uid);
+        if (entriesData.isNotEmpty) {
+           final List<SleepEntry> loadedEntries = [];
+           entriesData.forEach((id, entryData) {
+             try {
+                final entry = SleepEntry.fromJson(Map<String, dynamic>.from(entryData));
+                entry.firestoreId = id;
+                entry.syncStatus = 'synced';
+                loadedEntries.add(entry);
+             } catch (e) {
+                debugPrint('Error parsing entry $id: $e');
+             }
+           });
+           
+           // Sort by slept time (newest first)
+           loadedEntries.sort((a, b) {
+             if (a.slept == null && b.slept == null) return 0;
+             if (a.slept == null) return 1;
+             if (b.slept == null) return -1;
+             return b.slept!.compareTo(a.slept!);
+           });
+           
+           entries = loadedEntries;
+           await saveData();
+        }
+
+        notifyListeners();
         
         // Trigger migration of old entries
         await _migrateOldEntriesToFirestore();
@@ -100,13 +136,23 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  void clearUserData() {
+    entries.clear();
+    selectedIndex = null;
+    _syncQueue.clear();
+    notifyListeners();
+  }
+
   Future<void> saveData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    final user = FirebaseService().currentUser;
+    final uidKey = user != null ? '_${user.uid}' : '';
+    
     String entriesJson = jsonEncode(entries.map((e) => e.toJson()).toList());
-    await prefs.setString('entries', entriesJson);
-    await prefs.setBool('is24Hour', is24Hour);
-    await prefs.setBool('isTableView', isTableView);
-    await prefs.setString('language', locale.languageCode);
+    await prefs.setString('entries$uidKey', entriesJson);
+    await prefs.setBool('is24Hour$uidKey', is24Hour);
+    await prefs.setBool('isTableView$uidKey', isTableView);
+    await prefs.setString('language$uidKey', locale.languageCode);
   }
 
   void togglePeriod() {
@@ -399,6 +445,9 @@ class AppProvider with ChangeNotifier {
 
       notifyListeners();
       saveData();
+      
+      _syncImportedEntries(importedEntries);
+      
       return importedEntries.length;
     } catch (e) {
       debugPrint('Error importing CSV: $e');
@@ -546,8 +595,20 @@ class AppProvider with ChangeNotifier {
 
   Future<void> _loadSyncQueue() async {
     try {
+      final user = FirebaseService().currentUser;
+      final uidKey = user != null ? '_${user.uid}' : '';
       final prefs = await SharedPreferences.getInstance();
-      final queueJson = prefs.getString('sync_queue');
+      
+      String? queueJson = prefs.getString('sync_queue$uidKey');
+      if (queueJson == null && user != null) {
+        // Migration
+        queueJson = prefs.getString('sync_queue');
+        if (queueJson != null) {
+          prefs.setString('sync_queue$uidKey', queueJson);
+          prefs.remove('sync_queue');
+        }
+      }
+
       if (queueJson != null) {
         final List<dynamic> list = jsonDecode(queueJson);
         _syncQueue = list
@@ -561,9 +622,11 @@ class AppProvider with ChangeNotifier {
 
   Future<void> _saveSyncQueue() async {
     try {
+      final user = FirebaseService().currentUser;
+      final uidKey = user != null ? '_${user.uid}' : '';
       final prefs = await SharedPreferences.getInstance();
       final queueJson = jsonEncode(_syncQueue.map((e) => e.toJson()).toList());
-      await prefs.setString('sync_queue', queueJson);
+      await prefs.setString('sync_queue$uidKey', queueJson);
     } catch (e) {
       debugPrint('Error saving sync queue: $e');
     }
@@ -604,6 +667,36 @@ class AppProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('Error migrating entries: $e');
       _isMigratingData = false;
+    }
+  }
+
+  Future<void> _syncImportedEntries(List<SleepEntry> importedEntries) async {
+    try {
+      final user = FirebaseService().currentUser;
+      if (user == null) return;
+
+      // Clear pending sync queue items since we are replacing the entire database
+      _syncQueue.clear();
+      _saveSyncQueue();
+
+      final entriesData = importedEntries.map((e) {
+        e.syncStatus = 'synced';
+        return e.toFirestore();
+      }).toList();
+      
+      final ids = await FirebaseService().replaceAllSleepEntries(user.uid, entriesData);
+      
+      for (int i = 0; i < importedEntries.length; i++) {
+        importedEntries[i].firestoreId = ids[i];
+      }
+      saveData();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error syncing imported CSV to Firebase: $e');
+      // If bulk sync fails, fallback to adding to queue so it tries later
+      for (var entry in importedEntries) {
+         _addToSyncQueue('create', entry);
+      }
     }
   }
 }

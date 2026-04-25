@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../l10n/localized_strings.dart';
 import '../providers/app_provider.dart';
 import '../services/firebase_service.dart';
+import '../widgets/settings_bottom_sheet.dart';
 import 'analytics_screen.dart';
 
 class MainScreen extends StatelessWidget {
@@ -26,65 +27,16 @@ class MainScreen extends StatelessWidget {
           appBar: AppBar(
             title: Text(strings.appTitle),
             actions: [
-              PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == 'export') {
-                    final filename = await provider.exportCsv(
-                      headers: strings.getCsvHeaders(),
-                      dayValue: strings.dayLabel,
-                      nightValue: strings.nightLabel,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(strings.getCsvExportedMessage(filename)),
-                        ),
-                      );
-                    }
-                  } else if (value == 'import') {
-                    final result = await provider.importCsv();
-                    if (context.mounted && result != null) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(
-                        SnackBar(
-                          content: Text(strings.getEntriesImportedMessage(result)),
-                        ),
-                      );
-                    } else if (context.mounted && result == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(strings.importCancelledOrFailed),
-                        ),
-                      );
-                    }
-                  } else if (value == 'language') {
-                    _showLanguageDialog(context, provider, strings);
-                  } else if (value == 'analytics') {
-                    if (context.mounted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AnalyticsScreen(),
-                        ),
-                      );
-                    }
-                  } else if (value == 'time_format') {
-                    _showTimeFormatDialog(context, provider, strings);
-                  } else if (value == 'logout') {
-                    await FirebaseService().signOut();
-                  }
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const SettingsBottomSheet(),
+                  );
                 },
-                itemBuilder: (context) => [
-                  PopupMenuItem(value: 'import', child: Text(strings.importCsv)),
-                  PopupMenuItem(value: 'export', child: Text(strings.exportCsv)),
-                  PopupMenuItem(value: 'language', child: Text(strings.language)),
-                  PopupMenuItem(
-                    value: 'time_format',
-                    child: Text(strings.timeFormat),
-                  ),
-                  PopupMenuItem(value: 'logout', child: Text(strings.logout)),
-                ],
               ),
             ],
           ),

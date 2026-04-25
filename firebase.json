@@ -1,1 +1,27 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"dante-sleep","appId":"1:68587916563:android:c26cee328eeb6c25c59ee6","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"dante-sleep","configurations":{"android":"1:68587916563:android:c26cee328eeb6c25c59ee6","ios":"1:68587916563:ios:cf99d2f0d54675abc59ee6","web":"1:68587916563:web:9284f0324a080d76c59ee6"}}}}}}
+﻿{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "dante-sleep",
+          "appId": "1:68587916563:android:c26cee328eeb6c25c59ee6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "dante-sleep",
+          "configurations": {
+            "android": "1:68587916563:android:c26cee328eeb6c25c59ee6",
+            "ios": "1:68587916563:ios:cf99d2f0d54675abc59ee6",
+            "web": "1:68587916563:web:9284f0324a080d76c59ee6"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "rules/firestore.rules",
+    "indexes": "rules/firestore.indexes.json"
+  }
+}

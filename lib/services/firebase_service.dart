@@ -1,6 +1,6 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class FirebaseService {
@@ -112,65 +112,18 @@ class FirebaseService {
 
   User? get currentUser => _auth?.currentUser;
 
-  // Firestore methods for SleepEntry
-  Future<void> saveSleepEntry(String userId, Map<String, dynamic> entry) async {
-    await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('sleep_entries')
-        .add(entry);
-  }
-
-  Future<void> updateSleepEntry(
-    String userId,
-    String entryId,
-    Map<String, dynamic> entry,
-  ) async {
-    await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('sleep_entries')
-        .doc(entryId)
-        .update(entry);
-  }
-
-  Future<void> deleteSleepEntry(String userId, String entryId) async {
-    await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('sleep_entries')
-        .doc(entryId)
-        .delete();
-  }
-
-  Stream<QuerySnapshot> getSleepEntriesStream(String userId) {
-    return firestore
-        .collection('users')
-        .doc(userId)
-        .collection('sleep_entries')
-        .orderBy('wokeUp', descending: true)
-        .snapshots();
-  }
-
-  Future<List<QueryDocumentSnapshot>> getSleepEntries(String userId) async {
-    final snapshot = await firestore
-        .collection('users')
-        .doc(userId)
-        .collection('sleep_entries')
-        .orderBy('wokeUp', descending: true)
-        .get();
-    return snapshot.docs;
-  }
-
-  // Sleep entries methods (new structure: sleep_entries/{uid}/entries/{entryId})
+  // Sleep entries methods (new structure: sleep_entries/{uid} = { entryId: { data } })
   Future<String> createSleepEntry(String userId, Map<String, dynamic> entryData) async {
     try {
-      final docRef = await firestore
+      final entryId = firestore.collection('sleep_entries').doc().id;
+      await firestore
           .collection('sleep_entries')
           .doc(userId)
-          .collection('entries')
-          .add(entryData);
-      return docRef.id;
+          .set({
+        entryId: entryData,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return entryId;
     } catch (e) {
       rethrow;
     }
@@ -185,9 +138,10 @@ class FirebaseService {
       await firestore
           .collection('sleep_entries')
           .doc(userId)
-          .collection('entries')
-          .doc(entryId)
-          .update(entryData);
+          .update({
+        '$entryId': entryData,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       rethrow;
     }
@@ -198,21 +152,33 @@ class FirebaseService {
       await firestore
           .collection('sleep_entries')
           .doc(userId)
-          .collection('entries')
-          .doc(entryId)
-          .delete();
+          .update({
+        FieldPath([entryId]): FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       rethrow;
     }
   }
 
-  Stream<QuerySnapshot> getSleepEntriesStream(String userId) {
+  Stream<DocumentSnapshot> getSleepEntriesStream(String userId) {
     return firestore
         .collection('sleep_entries')
         .doc(userId)
-        .collection('entries')
-        .orderBy('wokeUp', descending: true)
         .snapshots();
+  }
+
+  Future<Map<String, dynamic>> getSleepEntries(String userId) async {
+    try {
+      final doc = await firestore.collection('sleep_entries').doc(userId).get();
+      final data = doc.data() ?? {};
+      // Remove campos de sistema
+      data.remove('updatedAt');
+      data.remove('createdAt');
+      return Map<String, dynamic>.from(data);
+    } catch (e) {
+      return {};
+    }
   }
 
   Future<void> migrateSleepEntriesToFirestore(
@@ -220,23 +186,43 @@ class FirebaseService {
     List<Map<String, dynamic>> entries,
   ) async {
     try {
-      // Ensure anchor document exists
+      final Map<String, dynamic> entriesMap = {};
+      for (var entry in entries) {
+        final entryId = firestore.collection('sleep_entries').doc().id;
+        entriesMap[entryId] = entry;
+      }
       await firestore
           .collection('sleep_entries')
           .doc(userId)
-          .set({'createdAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+          .set({
+        ...entriesMap,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
+  }
 
-      // Batch add entries
-      final batch = firestore.batch();
+  Future<List<String>> replaceAllSleepEntries(
+    String userId,
+    List<Map<String, dynamic>> entries,
+  ) async {
+    try {
+      final Map<String, dynamic> entriesMap = {};
+      final List<String> generatedIds = [];
       for (var entry in entries) {
-        final docRef = firestore
-            .collection('sleep_entries')
-            .doc(userId)
-            .collection('entries')
-            .doc();
-        batch.set(docRef, entry);
+        final entryId = firestore.collection('sleep_entries').doc().id;
+        entriesMap[entryId] = entry;
+        generatedIds.add(entryId);
       }
-      await batch.commit();
+      await firestore
+          .collection('sleep_entries')
+          .doc(userId)
+          .set({
+        ...entriesMap,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return generatedIds;
     } catch (e) {
       rethrow;
     }
@@ -265,6 +251,33 @@ class FirebaseService {
         'settings': settings,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // User Profile methods
+  Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    try {
+      final doc = await firestore.collection('users').doc(userId).get();
+      return doc.data() ?? {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  Future<void> updateUserProfile(
+    String userId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await firestore
+          .collection('users')
+          .doc(userId)
+          .set({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       rethrow;
     }

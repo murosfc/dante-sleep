@@ -13,12 +13,10 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  static const bool _enableGoogleSignIn = bool.fromEnvironment(
-    'ENABLE_GOOGLE_SIGN_IN',
-    defaultValue: false,
-  );
+  static const bool _enableGoogleSignIn = true;
 
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -29,6 +27,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -97,6 +96,13 @@ class _AuthScreenState extends State<AuthScreen> {
         await FirebaseService().signInWithEmail(email, password);
       } else {
         await FirebaseService().signUpWithEmail(email, password);
+        final name = _nameController.text.trim();
+        if (name.isNotEmpty) {
+           final user = FirebaseService().currentUser;
+           if (user != null) {
+              await FirebaseService().updateUserProfile(user.uid, {'displayName': name});
+           }
+        }
       }
       
       // Load settings after successful authentication
@@ -182,9 +188,11 @@ class _AuthScreenState extends State<AuthScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Card(
-                  color: const Color(0xFF1A1226),
+                  color: const Color(0xFF231A36), // Mais claro para contraste
+                  elevation: 8,
+                  shadowColor: Colors.black54,
                   child: Padding(
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(22),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -210,11 +218,42 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
+                          if (!_isLoginMode) ...[
+                            TextFormField(
+                              controller: _nameController,
+                              style: const TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                labelText: isPt ? 'Nome (Opcional)' : 'Name (Optional)',
+                                labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
+                                filled: true,
+                                fillColor: const Color(0xFFF3F0FA),
+                                border: const OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                ),
+                                focusedBorder: const OutlineInputBorder(
+                                  borderSide: BorderSide(color: Color(0xFF4B2FA6), width: 2),
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            style: const TextStyle(color: Colors.black87),
                             decoration: InputDecoration(
                               labelText: _text(context, 'email'),
+                              labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
+                              filled: true,
+                              fillColor: Color(0xFFF3F0FA),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Color(0xFF4B2FA6), width: 2),
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                              ),
                             ),
                             validator: (value) {
                               final v = value?.trim() ?? '';
@@ -229,8 +268,19 @@ class _AuthScreenState extends State<AuthScreen> {
                           TextFormField(
                             controller: _passwordController,
                             obscureText: true,
+                            style: const TextStyle(color: Colors.black87),
                             decoration: InputDecoration(
                               labelText: _text(context, 'password'),
+                              labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
+                              filled: true,
+                              fillColor: Color(0xFFF3F0FA),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide: BorderSide(color: Color(0xFF4B2FA6), width: 2),
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                              ),
                             ),
                             validator: (value) {
                               final v = value ?? '';
@@ -246,8 +296,19 @@ class _AuthScreenState extends State<AuthScreen> {
                             TextFormField(
                               controller: _confirmPasswordController,
                               obscureText: true,
+                              style: const TextStyle(color: Colors.black87),
                               decoration: InputDecoration(
                                 labelText: _text(context, 'confirmPassword'),
+                                labelStyle: const TextStyle(color: Color(0xFF4B2FA6)),
+                                filled: true,
+                                fillColor: Color(0xFFF3F0FA),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Color(0xFF4B2FA6), width: 2),
+                                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                                ),
                               ),
                               validator: (value) {
                                 final v = value ?? '';
@@ -273,25 +334,42 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ],
                           const SizedBox(height: 14),
-                          FilledButton(
-                            onPressed: _isLoading ? null : _submit,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                          SizedBox(
+                            height: 44,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4B2FA6),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                elevation: 2,
+                              ),
+                              onPressed: _isLoading ? null : _submit,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : Text(
+                                      _isLoginMode
+                                          ? _text(context, 'submitLogin')
+                                          : _text(context, 'submitRegister'),
                                     ),
-                                  )
-                                : Text(
-                                    _isLoginMode
-                                        ? _text(context, 'submitLogin')
-                                        : _text(context, 'submitRegister'),
-                                  ),
+                            ),
                           ),
                           if (_enableGoogleSignIn && _isLoginMode) ...[
                             const SizedBox(height: 8),
                             OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white54),
+                              ),
                               onPressed: _isLoading ? null : _submitWithGoogle,
                               icon: const Icon(Icons.g_mobiledata),
                               label: Text(_text(context, 'googleSignIn')),
