@@ -63,8 +63,16 @@ class AppProvider with ChangeNotifier {
   bool isDay = true;
   bool is24Hour = true;
   bool isTableView = false;
+  String visualThemeMode = 'auto'; // 'auto' | 'day' | 'night'
   Locale locale = _systemDefaultLocale();
   int? selectedIndex;
+
+  bool get isVisualDay {
+    if (visualThemeMode == 'day') return true;
+    if (visualThemeMode == 'night') return false;
+    final now = DateTime.now();
+    return now.hour >= 6 && now.hour < 18;
+  }
 
   static Locale _systemDefaultLocale() {
     try {
@@ -111,6 +119,7 @@ class AppProvider with ChangeNotifier {
     is24Hour = prefs.getBool('is24Hour$uidKey') ?? true;
     String lang =
       prefs.getString('language$uidKey') ?? _storedLanguageFromLocale(_systemDefaultLocale());
+    visualThemeMode = prefs.getString('visualThemeMode$uidKey') ?? 'auto';
     locale = _localeFromStoredLanguage(lang);
     DateTime now = DateTime.now();
     isDay = now.hour >= 6 && now.hour < 18;
@@ -162,6 +171,7 @@ class AppProvider with ChangeNotifier {
         is24Hour = firestoreSettings['timeFormat24h'] ?? true;
         final lang = (firestoreSettings['language'] as String?) ??
           _storedLanguageFromLocale(_systemDefaultLocale());
+        visualThemeMode = (firestoreSettings['visualThemeMode'] as String?) ?? 'auto';
         locale = _localeFromStoredLanguage(lang);
       }
 
@@ -307,6 +317,15 @@ class AppProvider with ChangeNotifier {
     await prefs.setBool('is24Hour$uidKey', is24Hour);
     await prefs.setBool('isTableView$uidKey', isTableView);
     await prefs.setString('language$uidKey', _storedLanguageFromLocale(locale));
+    await prefs.setString('visualThemeMode$uidKey', visualThemeMode);
+  }
+
+  void setVisualThemeMode(String mode) {
+    if (mode != 'auto' && mode != 'day' && mode != 'night') return;
+    visualThemeMode = mode;
+    notifyListeners();
+    saveData();
+    _syncSettingsToFirestore();
   }
 
   void togglePeriod() {
@@ -658,6 +677,7 @@ class AppProvider with ChangeNotifier {
         await FirebaseService().updateSettings(user.uid, {
           'language': _storedLanguageFromLocale(locale),
           'timeFormat24h': is24Hour,
+          'visualThemeMode': visualThemeMode,
         });
       }
     } catch (e) {

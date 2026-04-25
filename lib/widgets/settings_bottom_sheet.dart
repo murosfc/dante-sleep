@@ -111,7 +111,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
     final strings = LocalizedStrings(context);
-    final isDay = provider.isDay;
+    final isDay = provider.isVisualDay;
     final textColor = isDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
     final bgColor = isDay ? Colors.white : const Color(0xFF1D1130);
 
@@ -323,6 +323,45 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                 ),
               ),
               
+              // Visual Theme Select
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.palette_outlined, color: textColor),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(strings.forceVisualTheme, style: TextStyle(color: textColor, fontSize: 16)),
+                    ),
+                    DropdownButton<String>(
+                      value: provider.visualThemeMode,
+                      dropdownColor: bgColor,
+                      underline: const SizedBox(),
+                      icon: Icon(Icons.arrow_drop_down, color: textColor),
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          provider.setVisualThemeMode(newValue);
+                        }
+                      },
+                      items: [
+                        DropdownMenuItem(
+                          value: 'auto',
+                          child: Text(strings.visualThemeAuto, style: TextStyle(color: textColor, fontSize: 14)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'day',
+                          child: Text(strings.visualThemeDay, style: TextStyle(color: textColor, fontSize: 14)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'night',
+                          child: Text(strings.visualThemeNight, style: TextStyle(color: textColor, fontSize: 14)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
               // Time Format Select
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

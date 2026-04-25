@@ -17,9 +17,10 @@ class MainScreen extends StatelessWidget {
       builder: (context) {
         final provider = Provider.of<AppProvider>(context);
         final strings = LocalizedStrings(context);
-        final isDay = provider.isDay;
-        final textColor = isDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
-        final subtitleColor = isDay
+        final isVisualDay = provider.isVisualDay;
+        final isDayPeriod = provider.isDay;
+        final textColor = isVisualDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
+        final subtitleColor = isVisualDay
             ? const Color(0xFF4B6287)
             : const Color(0xFFB8A7D5);
 
@@ -35,7 +36,7 @@ class MainScreen extends StatelessWidget {
                     icon: const Icon(Icons.notifications_outlined),
                     onPressed: () {
                       provider.markAiSuggestionsRead();
-                      _showAiSuggestionsDialog(context, provider, strings, isDay, textColor, subtitleColor);
+                      _showAiSuggestionsDialog(context, provider, strings, isVisualDay, textColor, subtitleColor);
                     },
                   ),
                   if (provider.hasPendingAiNotifications)
@@ -84,7 +85,7 @@ class MainScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
                   gradient: LinearGradient(
-                    colors: isDay
+                    colors: isVisualDay
                         ? const [Color(0xFFDBE8FF), Color(0xFFC8DCFF)]
                         : const [Color(0xFF1D1130), Color(0xFF130B20)],
                     begin: Alignment.topLeft,
@@ -92,7 +93,7 @@ class MainScreen extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: isDay
+                      color: isVisualDay
                           ? const Color(0x33246AE6)
                           : const Color(0x55100518),
                       blurRadius: 20,
@@ -108,15 +109,15 @@ class MainScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isDay
+                          color: isVisualDay
                               ? const Color(0xFFFFFFFF)
                               : const Color(0xFF2A1A42),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Icon(
-                          isDay ? Icons.wb_sunny : Icons.nightlight_round,
+                          isDayPeriod ? Icons.wb_sunny : Icons.nightlight_round,
                           size: 28,
-                          color: isDay
+                          color: isDayPeriod
                               ? const Color(0xFF2A6CE8)
                               : const Color(0xFFEADFFF),
                         ),
@@ -128,7 +129,7 @@ class MainScreen extends StatelessWidget {
                         onPressed: provider.toggleButton,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: isDay
+                          backgroundColor: isVisualDay
                               ? const Color(0xFF2A6CE8)
                               : const Color(0xFF4A2A72),
                           foregroundColor: const Color(0xFFFFFFFF),
@@ -162,7 +163,7 @@ class MainScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isDay
+                          color: isVisualDay
                               ? const Color(0xFFFFFFFF)
                               : const Color(0xFF2A1A42),
                           borderRadius: BorderRadius.circular(14),
@@ -170,7 +171,7 @@ class MainScreen extends StatelessWidget {
                         child: Icon(
                           Icons.bar_chart,
                           size: 28,
-                          color: isDay
+                          color: isVisualDay
                               ? const Color(0xFF2A6CE8)
                               : const Color(0xFFEADFFF),
                         ),

@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
       value: provider,
       child: Consumer<AppProvider>(
         builder: (context, provider, child) {
-          final bool isDay = provider.isDay;
+          final bool isDay = provider.isVisualDay;
           final ColorScheme colorScheme = isDay
               ? const ColorScheme.light(
                   primary: Color(0xFF2A6CE8),

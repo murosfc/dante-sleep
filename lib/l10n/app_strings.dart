@@ -6,6 +6,10 @@ class AppStrings {
   static const String exportCsv = 'Export CSV';
   static const String showAnalytics = 'Sleep Insights';
   static const String language = 'Language';
+    static const String forceVisualTheme = 'Force visual theme';
+    static const String visualThemeAuto = 'Auto';
+    static const String visualThemeDay = 'Day';
+    static const String visualThemeNight = 'Night';
   static const String timeFormat = 'Time Format';
   static const String logout = 'Logout';
   static const String save = 'Save';
@@ -122,6 +126,10 @@ class AppStringsPortuguese {
   static const String exportCsv = 'Exportar CSV';
   static const String showAnalytics = 'Ver Evolução';
   static const String language = 'Idioma';
+    static const String forceVisualTheme = 'Forçar tema visual';
+    static const String visualThemeAuto = 'Auto';
+    static const String visualThemeDay = 'Dia';
+    static const String visualThemeNight = 'Noite';
   static const String timeFormat = 'Formato de Hora';
   static const String logout = 'Sair';
   static const String save = 'Salvar';

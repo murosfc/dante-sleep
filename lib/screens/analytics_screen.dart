@@ -24,7 +24,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
     final strings = LocalizedStrings(context);
-    final isDay = provider.isDay;
+    final isDay = provider.isVisualDay;
     final textColor = isDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
     final subtitleColor = isDay ? const Color(0xFF4B6287) : const Color(0xFFB8A7D5);
 

@@ -42,6 +42,34 @@ class LocalizedStrings {
         : AppStrings.language;
   }
 
+  String get forceVisualTheme {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.forceVisualTheme
+        : AppStrings.forceVisualTheme;
+  }
+
+  String get visualThemeAuto {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.visualThemeAuto
+        : AppStrings.visualThemeAuto;
+  }
+
+  String get visualThemeDay {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.visualThemeDay
+        : AppStrings.visualThemeDay;
+  }
+
+  String get visualThemeNight {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.visualThemeNight
+        : AppStrings.visualThemeNight;
+  }
+
   String get timeFormat {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'pt'
