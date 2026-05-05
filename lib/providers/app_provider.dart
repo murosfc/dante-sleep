@@ -39,12 +39,23 @@ class AppProvider with ChangeNotifier {
         (aiSuggestion!.bedtimeRoutineStart != null ? 1 : 0);
   }
   bool _aiSuggestionsRead = false;
-  String get geminiApiKeyFromEnv => (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
-  String? get geminiModelFromEnv {
-    final value = (dotenv.env['GEMINI_MODEL'] ?? '').trim();
+  String get nvidiaApiKeyFromEnv {
+    final primary = (dotenv.env['NVIDIA_API_KEY'] ?? '').trim();
+    if (primary.isNotEmpty) return primary;
+    // Legacy fallback for previous Gemini-based configuration.
+    return (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+  }
+
+  String? get nvidiaModelFromEnv {
+    final value = ((dotenv.env['NVIDIA_MODEL'] ?? '')
+            .trim()
+            .isNotEmpty
+        ? dotenv.env['NVIDIA_MODEL']
+        : dotenv.env['GEMINI_MODEL'])
+        ?.trim();
     return value.isEmpty ? null : value;
   }
-  bool get hasGeminiApiKeyConfigured => geminiApiKeyFromEnv.isNotEmpty;
+  bool get hasNvidiaApiKeyConfigured => nvidiaApiKeyFromEnv.isNotEmpty;
   bool get hasPendingAiNotifications =>
       !_aiSuggestionsRead && aiUnreadCount > 0;
   void markAiSuggestionsRead() {
@@ -225,7 +236,7 @@ class AppProvider with ChangeNotifier {
       await _syncToFirestore();
 
       // 5. Refresh AI suggestions if API key is configured
-      if (hasGeminiApiKeyConfigured && babyProfile != null) {
+      if (hasNvidiaApiKeyConfigured && babyProfile != null) {
         refreshAiSuggestions();
       }
     } catch (e) {
@@ -257,7 +268,7 @@ class AppProvider with ChangeNotifier {
   // ─── AI suggestions ────────────────────────────────────────────────────────
   Future<void> refreshAiSuggestions() async {
     final profile = babyProfile;
-    final apiKey = geminiApiKeyFromEnv;
+    final apiKey = nvidiaApiKeyFromEnv;
     if (apiKey.isEmpty || profile == null) return;
 
     _aiSuggestionsRead = false;
@@ -269,7 +280,7 @@ class AppProvider with ChangeNotifier {
       profile: profile,
       entries: entries,
       languageCode: locale.languageCode,
-      preferredModel: geminiModelFromEnv,
+      preferredModel: nvidiaModelFromEnv,
     );
 
     aiSuggestion = result;

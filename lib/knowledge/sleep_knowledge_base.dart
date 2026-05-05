@@ -1,5 +1,5 @@
 /// Static knowledge base with evidence-based pediatric sleep guidelines.
-/// Injected into Gemini prompts as RAG context.
+/// Injected into AI prompts as RAG context.
 class SleepKnowledgeBase {
   SleepKnowledgeBase._();
 

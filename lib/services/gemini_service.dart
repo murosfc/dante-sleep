@@ -1,15 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 
 import '../knowledge/sleep_knowledge_base.dart';
 import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
 
-class GeminiService {
-  GeminiService._();
+class NvidiaService {
+  NvidiaService._();
+
+  static const _invokeUrl =
+      'https://integrate.api.nvidia.com/v1/chat/completions';
 
   static Future<AiSuggestion?> getSuggestions({
     required String apiKey,
@@ -23,10 +27,8 @@ class GeminiService {
     final modelsToTry = <String>[
       if (preferredModel != null && preferredModel.trim().isNotEmpty)
         preferredModel.trim(),
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-flash',
+      'meta/llama-4-maverick-17b-128e-instruct',
+      'meta/llama-3.1-70b-instruct',
     ].toSet().toList();
 
     try {
@@ -40,33 +42,73 @@ class GeminiService {
       Object? lastError;
       for (final modelName in modelsToTry) {
         try {
-          final model = GenerativeModel(
-            model: modelName,
-            apiKey: apiKey.trim(),
-            generationConfig: GenerationConfig(
-              temperature: 0.3,
-              maxOutputTokens: 512,
-            ),
-          );
+          final response = await http
+              .post(
+                Uri.parse(_invokeUrl),
+                headers: {
+                  'Authorization': 'Bearer ${apiKey.trim()}',
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'model': modelName,
+                  'messages': [
+                    {'role': 'user', 'content': prompt},
+                  ],
+                  'max_tokens': 512,
+                  'temperature': 0.3,
+                  'top_p': 1.0,
+                  'frequency_penalty': 0.0,
+                  'presence_penalty': 0.0,
+                  'stream': false,
+                }),
+              )
+              .timeout(const Duration(seconds: 30));
 
-          final response = await model.generateContent([Content.text(prompt)]);
-          final text = response.text ?? '';
+          if (response.statusCode >= 400) {
+            final body = response.body;
+            if (_isModelNotSupportedError(body)) {
+              lastError = body;
+              continue;
+            }
+            throw HttpException(
+              'NVIDIA API error ${response.statusCode}: $body',
+            );
+          }
+
+          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+          final choices = decoded['choices'];
+          if (choices is! List || choices.isEmpty) {
+            throw const FormatException('Invalid NVIDIA response: no choices');
+          }
+
+          final first = choices.first;
+          if (first is! Map<String, dynamic>) {
+            throw const FormatException('Invalid NVIDIA response: bad choice');
+          }
+
+          final message = first['message'];
+          if (message is! Map<String, dynamic>) {
+            throw const FormatException('Invalid NVIDIA response: no message');
+          }
+
+          final text = (message['content'] as String?) ?? '';
           return _parseResponse(text);
         } catch (e) {
           lastError = e;
           if (!_isModelNotSupportedError(e.toString())) {
-            debugPrint('GeminiService error ($modelName): $e');
+            debugPrint('NvidiaService error ($modelName): $e');
             return AiSuggestion(error: e.toString());
           }
         }
       }
 
       final message = lastError?.toString() ??
-          'No compatible Gemini model found for this API key/project.';
-      debugPrint('GeminiService model fallback error: $message');
+          'No compatible NVIDIA model found for this API key/project.';
+      debugPrint('NvidiaService model fallback error: $message');
       return AiSuggestion(error: message);
     } catch (e) {
-      debugPrint('GeminiService error: $e');
+      debugPrint('NvidiaService error: $e');
       return AiSuggestion(error: e.toString());
     }
   }
@@ -75,7 +117,8 @@ class GeminiService {
     final m = message.toLowerCase();
     return m.contains('not found') ||
         m.contains('not supported') ||
-        m.contains('listmodels') ||
+      m.contains('invalid model') ||
+      m.contains('unknown model') ||
         m.contains('unsupported');
   }
 
@@ -207,5 +250,26 @@ RESPOND ONLY with valid JSON, no additional text:
     } catch (_) {
       return const AiSuggestion(error: 'Could not parse AI response');
     }
+  }
+}
+
+// Backward-compatible adapter for existing call sites.
+class GeminiService {
+  GeminiService._();
+
+  static Future<AiSuggestion?> getSuggestions({
+    required String apiKey,
+    required BabyProfile profile,
+    required List<SleepEntry> entries,
+    required String languageCode,
+    String? preferredModel,
+  }) {
+    return NvidiaService.getSuggestions(
+      apiKey: apiKey,
+      profile: profile,
+      entries: entries,
+      languageCode: languageCode,
+      preferredModel: preferredModel,
+    );
   }
 }

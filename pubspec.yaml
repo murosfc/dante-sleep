@@ -49,7 +49,7 @@ dependencies:
   firebase_auth: ^5.5.4
   google_sign_in: ^6.3.0
   image_picker: ^1.2.1
-  google_generative_ai: ^0.4.6
+  http: ^1.2.2
   flutter_local_notifications: ^18.0.0
   timezone: ^0.9.4
   flutter_dotenv: ^5.2.1
