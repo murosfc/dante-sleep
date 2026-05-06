@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/localized_strings.dart';
 import '../models/entry.dart';
+
 import '../providers/app_provider.dart';
 
 enum AnalyticsPeriod { all, days7, days14, days30 }
@@ -16,9 +17,22 @@ class AnalyticsScreen extends StatefulWidget {
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> {
+class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderStateMixin {
   AnalyticsPeriod _period = AnalyticsPeriod.all;
   DateTime? _selectedNightStartDate;
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +42,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final textColor = isDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
     final subtitleColor = isDay ? const Color(0xFF4B6287) : const Color(0xFFB8A7D5);
 
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(strings.analyticsTitle),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: strings.sleepAwakeTrend),
+            Tab(text: _t(context, 'Previsão de Janelas', 'Sleep Windows')),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildAnalyticsTab(provider, strings, isDay, textColor, subtitleColor),
+          _buildSleepWindowsTab(provider, strings, isDay, textColor, subtitleColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsTab(AppProvider provider, LocalizedStrings strings, bool isDay, Color textColor, Color subtitleColor) {
     final filtered = _applyPeriodFilter(provider.entries, _period)
       ..sort((a, b) {
         final aDate = a.slept ?? a.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -47,260 +83,368 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final dayDailySummaries =
         _buildDailySummaries(filtered.where((entry) => entry.isDay).toList());
 
-    return Scaffold(
-      appBar: AppBar(title: Text(strings.analyticsTitle)),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (effectiveNightDate != null)
-              Row(
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (effectiveNightDate != null)
+            Row(
+              children: [
+                Text(
+                  strings.lastNightSummary,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () => _pickNightDate(context, nightGroups),
+                  icon: const Icon(Icons.calendar_today, size: 15),
+                  label: Text(_formatNightDateLabel(effectiveNightDate, context)),
+                ),
+              ],
+            )
+          else
+            Text(
+              strings.lastNightSummary,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: textColor,
+              ),
+            ),
+          const SizedBox(height: 8),
+          Card(
+            child: ExpansionTile(
+              initiallyExpanded: true,
+              title: Row(
                 children: [
                   Text(
                     strings.lastNightSummary,
                     style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       color: textColor,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: () => _pickNightDate(context, nightGroups),
-                    icon: const Icon(Icons.calendar_today, size: 15),
-                    label: Text(_formatNightDateLabel(effectiveNightDate, context)),
+                  if (effectiveNightDate != null) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      _formatNightDateLabel(effectiveNightDate, context),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w400,
+                        color: subtitleColor,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              iconColor: textColor,
+              collapsedIconColor: textColor,
+              shape: const Border(),
+              collapsedShape: const Border(),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              children: [
+                if (nightSummary == null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      strings.noLastNightData,
+                      style: TextStyle(color: subtitleColor),
+                    ),
+                  )
+                else
+                  Column(
+                    children: [
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: _buildSummaryMetric(
+                                  strings.totalSlept,
+                                  _formatHours(nightSummary.totalSleepHours),
+                                  textColor,
+                                  subtitleColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildSummaryMetric(
+                                  strings.totalAwake,
+                                  _formatHours(nightSummary.totalAwakeHours),
+                                  textColor,
+                                  subtitleColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildSummaryMetric(
+                                  strings.wakeUps,
+                                  '${nightSummary.wakeCount} ${strings.timesUnit}',
+                                  textColor,
+                                  subtitleColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 10),
+                        IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: _buildSummaryMetric(
+                                  strings.averageSleep,
+                                  _formatHours(nightSummary.avgSleepBlock),
+                                  textColor,
+                                  subtitleColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildSummaryMetric(
+                                  strings.averageAwake,
+                                  _formatHours(nightSummary.avgAwakeBlock),
+                                  textColor,
+                                  subtitleColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildSummaryMetric(
+                                  strings.maxSleep,
+                                  _formatHours(nightSummary.maxSleepBlock),
+                                  textColor,
+                                  subtitleColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                strings.filterPeriod,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<AnalyticsPeriod>(
+                  initialValue: _period,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    filled: true,
+                    fillColor: isDay
+                        ? const Color(0xFFF3F8FF)
+                        : const Color(0xFF221834),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: AnalyticsPeriod.all,
+                      child: Text(strings.periodAll),
+                    ),
+                    DropdownMenuItem(
+                      value: AnalyticsPeriod.days7,
+                      child: Text(strings.period7Days),
+                    ),
+                    DropdownMenuItem(
+                      value: AnalyticsPeriod.days14,
+                      child: Text(strings.period14Days),
+                    ),
+                    DropdownMenuItem(
+                      value: AnalyticsPeriod.days30,
+                      child: Text(strings.period30Days),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _period = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (nightDailySummaries.isEmpty && dayDailySummaries.isEmpty)
+            Expanded(
+              child: Center(
+                child: Text(
+                  strings.noDataForPeriod,
+                  style: TextStyle(color: subtitleColor, fontSize: 16),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildSleepAwakePeriodChart(
+                    title: _t(context, 'Noturno • Sono x Acordado', 'Night • Sleep vs Awake'),
+                    data: nightDailySummaries,
+                    subtitleColor: subtitleColor,
+                    sleepColor: isDay
+                        ? const Color(0xFF2A6CE8)
+                        : const Color(0xFF9A7CFF),
+                    awakeColor: isDay
+                        ? const Color(0xFF35B6A8)
+                        : const Color(0xFF64D6CA),
+                    emptyText: _t(context, 'Sem dados noturnos no período', 'No night data for selected period'),
+                    hoursUnit: strings.hoursUnit,
+                    sleepLabel: strings.totalSlept,
+                    awakeLabel: strings.totalAwake,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSleepAwakePeriodChart(
+                    title: _t(context, 'Diurno • Sono x Acordado', 'Day • Sleep vs Awake'),
+                    data: dayDailySummaries,
+                    subtitleColor: subtitleColor,
+                    sleepColor: isDay
+                        ? const Color(0xFF4A86F8)
+                        : const Color(0xFFC3AEFF),
+                    awakeColor: isDay
+                        ? const Color(0xFF57C8B8)
+                        : const Color(0xFF82E6DB),
+                    emptyText: _t(context, 'Sem dados diurnos no período', 'No day data for selected period'),
+                    hoursUnit: strings.hoursUnit,
+                    sleepLabel: strings.totalSlept,
+                    awakeLabel: strings.totalAwake,
                   ),
                 ],
-              )
-            else
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSleepWindowsTab(AppProvider provider, LocalizedStrings strings, bool isDay, Color textColor, Color subtitleColor) {
+    final predictions = provider.sleepWindowPredictions;
+    final hasEnoughData = provider.entries.length >= 3;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Text(
-                strings.lastNightSummary,
+                _t(context, 'Previsão de Janelas de Sono', 'Sleep Windows Prediction'),
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                   color: textColor,
                 ),
               ),
-            const SizedBox(height: 8),
-            Card(
-              child: ExpansionTile(
-                initiallyExpanded: true,
-                title: Row(
+              const Spacer(),
+              if (hasEnoughData)
+                TextButton.icon(
+                  onPressed: () => provider.refreshSleepWindowPredictions(force: true),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: Text(_t(context, 'Atualizar', 'Refresh')),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (!hasEnoughData)
+            Expanded(
+              child: Center(
+                child: Text(
+                  _t(context, 'Precisa de pelo menos 3 registros para gerar previsões', 'Need at least 3 records to generate predictions'),
+                  style: TextStyle(color: subtitleColor, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else if (predictions == null)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    const CircularProgressIndicator(
+                      color: Color(0xFF9A7CFF),
+                    ),
+                    const SizedBox(height: 16),
                     Text(
-                      strings.lastNightSummary,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                    if (effectiveNightDate != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatNightDateLabel(effectiveNightDate, context),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w400,
-                          color: subtitleColor,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                iconColor: textColor,
-                collapsedIconColor: textColor,
-                shape: const Border(),
-                collapsedShape: const Border(),
-                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                children: [
-                  if (nightSummary == null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        strings.noLastNightData,
-                        style: TextStyle(color: subtitleColor),
-                      ),
-                    )
-                  else
-                    Column(
-                      children: [
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.totalSlept,
-                                    _formatHours(nightSummary.totalSleepHours),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.totalAwake,
-                                    _formatHours(nightSummary.totalAwakeHours),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.wakeUps,
-                                    '${nightSummary.wakeCount} ${strings.timesUnit}',
-                                    textColor,
-                                  subtitleColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        const SizedBox(height: 10),
-                          IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.averageSleep,
-                                    _formatHours(nightSummary.avgSleepBlock),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.averageAwake,
-                                    _formatHours(nightSummary.avgAwakeBlock),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _buildSummaryMetric(
-                                    strings.maxSleep,
-                                    _formatHours(nightSummary.maxSleepBlock),
-                                    textColor,
-                                    subtitleColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Text(
-                  strings.filterPeriod,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<AnalyticsPeriod>(
-                    initialValue: _period,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      filled: true,
-                      fillColor: isDay
-                          ? const Color(0xFFF3F8FF)
-                          : const Color(0xFF221834),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: AnalyticsPeriod.all,
-                        child: Text(strings.periodAll),
-                      ),
-                      DropdownMenuItem(
-                        value: AnalyticsPeriod.days7,
-                        child: Text(strings.period7Days),
-                      ),
-                      DropdownMenuItem(
-                        value: AnalyticsPeriod.days14,
-                        child: Text(strings.period14Days),
-                      ),
-                      DropdownMenuItem(
-                        value: AnalyticsPeriod.days30,
-                        child: Text(strings.period30Days),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _period = value);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (nightDailySummaries.isEmpty && dayDailySummaries.isEmpty)
-              Expanded(
-                child: Center(
-                  child: Text(
-                    strings.noDataForPeriod,
-                    style: TextStyle(color: subtitleColor, fontSize: 16),
-                  ),
-                ),
-              )
-            else
-              Expanded(
-                child: ListView(
-                  children: [
-                    _buildSleepAwakePeriodChart(
-                      title: _t(context, 'Noturno • Sono x Acordado', 'Night • Sleep vs Awake'),
-                      data: nightDailySummaries,
-                      subtitleColor: subtitleColor,
-                      sleepColor: isDay
-                          ? const Color(0xFF2A6CE8)
-                          : const Color(0xFF9A7CFF),
-                      awakeColor: isDay
-                          ? const Color(0xFF35B6A8)
-                          : const Color(0xFF64D6CA),
-                      emptyText: _t(context, 'Sem dados noturnos no período', 'No night data for selected period'),
-                      hoursUnit: strings.hoursUnit,
-                      sleepLabel: strings.totalSlept,
-                      awakeLabel: strings.totalAwake,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSleepAwakePeriodChart(
-                      title: _t(context, 'Diurno • Sono x Acordado', 'Day • Sleep vs Awake'),
-                      data: dayDailySummaries,
-                      subtitleColor: subtitleColor,
-                      sleepColor: isDay
-                          ? const Color(0xFF4A86F8)
-                          : const Color(0xFFC3AEFF),
-                      awakeColor: isDay
-                          ? const Color(0xFF57C8B8)
-                          : const Color(0xFF82E6DB),
-                      emptyText: _t(context, 'Sem dados diurnos no período', 'No day data for selected period'),
-                      hoursUnit: strings.hoursUnit,
-                      sleepLabel: strings.totalSlept,
-                      awakeLabel: strings.totalAwake,
+                      _t(context, 'Analisando dados para previsões…', 'Analyzing data for predictions…'),
+                      style: TextStyle(color: subtitleColor),
                     ),
                   ],
                 ),
               ),
-          ],
-        ),
+            )
+          else if (predictions.isEmpty)
+            Expanded(
+              child: Center(
+                child: Text(
+                  _t(context, 'Não foi possível gerar previsões', 'Could not generate predictions'),
+                  style: TextStyle(color: subtitleColor, fontSize: 16),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: predictions.length,
+                itemBuilder: (context, index) {
+                  final prediction = predictions[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            prediction.periodName,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: textColor,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ...prediction.windows.map((window) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              window.displayText(provider.locale.languageCode == 'pt'),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: subtitleColor,
+                                height: 1.4,
+                              ),
+                            ),
+                          )),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }

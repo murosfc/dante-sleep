@@ -4,11 +4,15 @@ class SleepKnowledgeBase {
   SleepKnowledgeBase._();
 
   static String getContext(DateTime? birthdate, {bool isPt = true}) {
+    String context;
     if (birthdate == null) {
-      return isPt ? _generalPt : _generalEn;
+      context = isPt ? _generalPt : _generalEn;
+    } else {
+      final weeks = DateTime.now().difference(birthdate).inDays ~/ 7;
+      context = _getByWeeks(weeks, isPt: isPt);
     }
-    final weeks = DateTime.now().difference(birthdate).inDays ~/ 7;
-    return _getByWeeks(weeks, isPt: isPt);
+    final bridgeNap = isPt ? _bridgeNapPt : _bridgeNapEn;
+    return '$context\n\n$bridgeNap';
   }
 
   static String _getByWeeks(int weeks, {required bool isPt}) {
@@ -168,4 +172,14 @@ class SleepKnowledgeBase {
 • 1–2 y: 11–14 h/day, WW 3h–6h
 • Overtired baby has MORE difficulty sleeping
 • Watch for cues: eye rubbing, yawning, glassy eyes''';
+
+  static const _bridgeNapPt = '''Soneca Ponte (Cat Nap):
+• Se a janela de sono até a rotina noturna exceder o limite máximo da idade, sugira uma "soneca ponte" (cat nap).
+• Duração ideal da soneca ponte: 15 a 45 minutos (apenas para aliviar a pressão de sono).
+• A janela de sono APÓS a soneca ponte costuma ser um pouco MENOR que a janela normal, para não empurrar o sono noturno para muito tarde.''';
+
+  static const _bridgeNapEn = '''Bridge Nap (Cat Nap):
+• If the wake window until bedtime exceeds the maximum limit for the age, suggest a "bridge nap" (cat nap).
+• Ideal duration: 15 to 45 minutes (just to relieve sleep pressure).
+• The wake window AFTER a bridge nap is usually slightly SHORTER than the normal window, so bedtime isn't pushed too late.''';
 }

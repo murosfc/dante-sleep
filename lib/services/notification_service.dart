@@ -1,8 +1,13 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
+  static const MethodChannel _exactAlarmsChannel = MethodChannel(
+    'com.example.dante_sleep/exact_alarms',
+  );
   NotificationService._();
 
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -33,18 +38,17 @@ class NotificationService {
     // Android 13+
     final android = _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     final granted = await android?.requestNotificationsPermission() ?? false;
 
     // iOS
     final ios = _plugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
-    final iosGranted = await ios?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        ) ??
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    final iosGranted =
+        await ios?.requestPermissions(alert: true, badge: true, sound: true) ??
         false;
 
     return granted || iosGranted;
@@ -91,7 +95,11 @@ class NotificationService {
       if (scheduled != null && scheduled.isAfter(now)) {
         await _schedule(
           id: _bedtimeNotifId,
-          title: _routineTitle(isPt: isPt, babyName: babyName, babySex: babySex),
+          title: _routineTitle(
+            isPt: isPt,
+            babyName: babyName,
+            babySex: babySex,
+          ),
           body: _composeBody(
             isPt: isPt,
             userName: userName,
@@ -106,27 +114,35 @@ class NotificationService {
     }
   }
 
-  static String _napTitle({required bool isPt, String? babyName, String? babySex}) {
-    final hasBaby = babyName != null && babyName.trim().isNotEmpty;
+  static String _napTitle({
+    required bool isPt,
+    String? babyName,
+    String? babySex,
+  }) {
+    final babyNameTrimmed = babyName?.trim() ?? '';
+    final hasBaby = babyNameTrimmed.isNotEmpty;
     if (isPt) {
       return hasBaby
-          ? '🍼 Hora da soneca de ${babyName!.trim()}!'
+          ? '🍼 Hora da soneca de $babyNameTrimmed!'
           : '🍼 Hora da soneca ${_ptPossessiveBaby(babySex)}!';
     }
-    return hasBaby
-        ? '🍼 ${babyName!.trim()}\'s nap time!'
-        : '🍼 Nap time!';
+    return hasBaby ? '🍼 $babyNameTrimmed\'s nap time!' : '🍼 Nap time!';
   }
 
-  static String _routineTitle({required bool isPt, String? babyName, String? babySex}) {
-    final hasBaby = babyName != null && babyName.trim().isNotEmpty;
+  static String _routineTitle({
+    required bool isPt,
+    String? babyName,
+    String? babySex,
+  }) {
+    final babyNameTrimmed = babyName?.trim() ?? '';
+    final hasBaby = babyNameTrimmed.isNotEmpty;
     if (isPt) {
       return hasBaby
-          ? '🌙 Iniciar rotina noturna de ${babyName!.trim()}'
+          ? '🌙 Iniciar rotina noturna de $babyNameTrimmed'
           : '🌙 Iniciar rotina noturna ${_ptPossessiveBaby(babySex)}';
     }
     return hasBaby
-        ? '🌙 Start ${babyName!.trim()}\'s bedtime routine'
+        ? '🌙 Start $babyNameTrimmed\'s bedtime routine'
         : '🌙 Start bedtime routine';
   }
 
@@ -146,11 +162,11 @@ class NotificationService {
         : '';
     final defaultText = hasBabyName
         ? (isPt
-            ? 'momento de cuidar do sono de $trimmedBaby.'
-            : 'time to care for $trimmedBaby\'s sleep.')
+              ? 'momento de cuidar do sono de $trimmedBaby.'
+              : 'time to care for $trimmedBaby\'s sleep.')
         : (isPt
-            ? 'momento de cuidar do sono ${_ptPossessiveBaby(babySex)}.'
-            : 'time to care for your baby\'s sleep.');
+              ? 'momento de cuidar do sono ${_ptPossessiveBaby(babySex)}.'
+              : 'time to care for your baby\'s sleep.');
     final content = (rationale != null && rationale.trim().isNotEmpty)
         ? rationale.trim()
         : fallbackTime;
@@ -175,6 +191,17 @@ class NotificationService {
     await _plugin.cancelAll();
   }
 
+  static Future<bool> _supportsExactAlarms() async {
+    try {
+      final result = await _exactAlarmsChannel.invokeMethod<bool>(
+        'canScheduleExactAlarms',
+      );
+      return result == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> _schedule({
     required int id,
     required String title,
@@ -189,25 +216,55 @@ class NotificationService {
       icon: '@mipmap/ic_launcher',
     );
     const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      details,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
     );
+
+    final useExactAlarms = await _supportsExactAlarms();
+    if (!useExactAlarms) {
+      debugPrint(
+        'Exact alarms not supported or permitted; using inexact scheduling.',
+      );
+    }
+
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledTime, tz.local),
+        details,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: useExactAlarms
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexact,
+      );
+    } on PlatformException catch (e) {
+      debugPrint('Notification scheduling failed: ${e.code} ${e.message}');
+      if (useExactAlarms) {
+        debugPrint('Retrying with inexact scheduling.');
+        await _plugin.zonedSchedule(
+          id,
+          title,
+          body,
+          tz.TZDateTime.from(scheduledTime, tz.local),
+          details,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          androidScheduleMode: AndroidScheduleMode.inexact,
+        );
+      }
+    }
   }
 
   static DateTime? _parseToday(String hhmm, DateTime reference) {
-    final parts = hhmm.split(':');
-    if (parts.length != 2) return null;
-    final h = int.tryParse(parts[0]);
-    final m = int.tryParse(parts[1]);
+    final regex = RegExp(r'(\d{1,2}):(\d{2})');
+    final match = regex.firstMatch(hhmm);
+    if (match == null) return null;
+    final h = int.tryParse(match.group(1)!);
+    final m = int.tryParse(match.group(2)!);
     if (h == null || m == null) return null;
     return DateTime(reference.year, reference.month, reference.day, h, m);
   }

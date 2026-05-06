@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../firebase_options.dart';
+
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
   factory FirebaseService() => _instance;
@@ -29,7 +31,9 @@ class FirebaseService {
   }
 
   Future<void> initialize() async {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     _firestore = FirebaseFirestore.instance;
     _auth = FirebaseAuth.instance;
   }
@@ -47,10 +51,7 @@ class FirebaseService {
       'email': user.email,
       'createdAt': now,
       'updatedAt': now,
-      'settings': {
-        'language': defaultLanguage,
-        'timeFormat24h': true,
-      },
+      'settings': {'language': defaultLanguage, 'timeFormat24h': true},
     }, SetOptions(merge: true));
   }
 
@@ -129,13 +130,13 @@ class FirebaseService {
   User? get currentUser => _auth?.currentUser;
 
   // Sleep entries methods (new structure: sleep_entries/{uid} = { entryId: { data } })
-  Future<String> createSleepEntry(String userId, Map<String, dynamic> entryData) async {
+  Future<String> createSleepEntry(
+    String userId,
+    Map<String, dynamic> entryData,
+  ) async {
     try {
       final entryId = firestore.collection('sleep_entries').doc().id;
-      await firestore
-          .collection('sleep_entries')
-          .doc(userId)
-          .set({
+      await firestore.collection('sleep_entries').doc(userId).set({
         entryId: entryData,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -151,10 +152,7 @@ class FirebaseService {
     Map<String, dynamic> entryData,
   ) async {
     try {
-      await firestore
-          .collection('sleep_entries')
-          .doc(userId)
-          .update({
+      await firestore.collection('sleep_entries').doc(userId).update({
         '$entryId': entryData,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -165,10 +163,7 @@ class FirebaseService {
 
   Future<void> deleteSleepEntry(String userId, String entryId) async {
     try {
-      await firestore
-          .collection('sleep_entries')
-          .doc(userId)
-          .update({
+      await firestore.collection('sleep_entries').doc(userId).update({
         FieldPath([entryId]): FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -178,10 +173,7 @@ class FirebaseService {
   }
 
   Stream<DocumentSnapshot> getSleepEntriesStream(String userId) {
-    return firestore
-        .collection('sleep_entries')
-        .doc(userId)
-        .snapshots();
+    return firestore.collection('sleep_entries').doc(userId).snapshots();
   }
 
   Future<Map<String, dynamic>> getSleepEntries(String userId) async {
@@ -207,10 +199,7 @@ class FirebaseService {
         final entryId = firestore.collection('sleep_entries').doc().id;
         entriesMap[entryId] = entry;
       }
-      await firestore
-          .collection('sleep_entries')
-          .doc(userId)
-          .set({
+      await firestore.collection('sleep_entries').doc(userId).set({
         ...entriesMap,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -231,10 +220,7 @@ class FirebaseService {
         entriesMap[entryId] = entry;
         generatedIds.add(entryId);
       }
-      await firestore
-          .collection('sleep_entries')
-          .doc(userId)
-          .set({
+      await firestore.collection('sleep_entries').doc(userId).set({
         ...entriesMap,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -260,10 +246,7 @@ class FirebaseService {
     Map<String, dynamic> settings,
   ) async {
     try {
-      await firestore
-          .collection('users')
-          .doc(userId)
-          .update({
+      await firestore.collection('users').doc(userId).update({
         'settings': settings,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -287,10 +270,7 @@ class FirebaseService {
     Map<String, dynamic> data,
   ) async {
     try {
-      await firestore
-          .collection('users')
-          .doc(userId)
-          .set({
+      await firestore.collection('users').doc(userId).set({
         ...data,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -313,10 +293,10 @@ class FirebaseService {
   // ─── Baby profile ──────────────────────────────────────────────────────────
   Future<void> saveBabyData(String userId, Map<String, dynamic> data) async {
     try {
-      await firestore.collection('users').doc(userId).set(
-        {'baby_data': data, 'updatedAt': FieldValue.serverTimestamp()},
-        SetOptions(merge: true),
-      );
+      await firestore.collection('users').doc(userId).set({
+        'baby_data': data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       rethrow;
     }

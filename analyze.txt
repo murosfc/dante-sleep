@@ -1,0 +1,197 @@
+﻿Analyzing dante-sleep...                                        
+
+  error - Undefined name 'GeminiService' - lib\providers\app_provider.dart:287:26 - undefined_identifier
+  error - Undefined name 'GeminiService' - lib\providers\app_provider.dart:337:26 - undefined_identifier
+   info - Missing type annotation - lib\screens\analytics_screen.dart:451:13 - strict_top_level_inference
+   info - The variable name 'Tab' isn't a lowerCamelCase identifier - lib\screens\analytics_screen.dart:451:13 - non_constant_identifier_names
+   info - Missing type annotation - lib\screens\analytics_screen.dart:451:17 - strict_top_level_inference
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\analytics_screen.dart:451:21 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\analytics_screen.dart:451:21 - obsolete_colon_for_default_value
+  error - Undefined name 'strings' - lib\screens\analytics_screen.dart:451:23 - undefined_identifier
+  error - A function body must be provided - lib\screens\analytics_screen.dart:451:47 - missing_function_body
+  error - Expected a class member - lib\screens\analytics_screen.dart:451:47 - expected_class_member
+   info - Missing type annotation - lib\screens\analytics_screen.dart:452:13 - strict_top_level_inference
+   info - The variable name 'Tab' isn't a lowerCamelCase identifier - lib\screens\analytics_screen.dart:452:13 - non_constant_identifier_names
+  error - The name 'Tab' is already defined - lib\screens\analytics_screen.dart:452:13 - duplicate_definition
+   info - Missing type annotation - lib\screens\analytics_screen.dart:452:17 - strict_top_level_inference
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\analytics_screen.dart:452:21 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\analytics_screen.dart:452:21 - obsolete_colon_for_default_value
+  error - Undefined name 'strings' - lib\screens\analytics_screen.dart:452:23 - undefined_identifier
+  error - A function body must be provided - lib\screens\analytics_screen.dart:452:90 - missing_function_body
+  error - Expected a class member - lib\screens\analytics_screen.dart:452:90 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:453:11 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:453:12 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:454:9 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:454:10 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:455:7 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:455:8 - expected_class_member
+   info - An uninitialized field should have an explicit type annotation - lib\screens\analytics_screen.dart:456:7 - prefer_typing_uninitialized_variables
+   info - Missing type annotation - lib\screens\analytics_screen.dart:456:7 - strict_top_level_inference
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:456:7 - expected_token
+  error - Variables must be declared using the keywords 'const', 'final', 'var' or a type name - lib\screens\analytics_screen.dart:456:7 - missing_const_final_var_or_type
+  error - Expected a class member - lib\screens\analytics_screen.dart:456:11 - expected_class_member
+   info - Missing type annotation - lib\screens\analytics_screen.dart:456:13 - strict_top_level_inference
+   info - The variable name 'TabBarView' isn't a lowerCamelCase identifier - lib\screens\analytics_screen.dart:456:13 - non_constant_identifier_names
+   info - Missing type annotation - lib\screens\analytics_screen.dart:457:9 - strict_top_level_inference
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\analytics_screen.dart:457:19 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\analytics_screen.dart:457:19 - obsolete_colon_for_default_value
+  error - The default value of an optional parameter must be constant - lib\screens\analytics_screen.dart:457:21 - non_constant_default_value
+   info - Missing type annotation - lib\screens\analytics_screen.dart:458:9 - strict_top_level_inference
+  error - Named parameters must be enclosed in curly braces ('{' and '}') - lib\screens\analytics_screen.dart:458:17 - named_parameter_outside_group
+  error - Using a colon as the separator before a default value is no longer supported - lib\screens\analytics_screen.dart:458:17 - obsolete_colon_for_default_value
+  error - The default value of an optional parameter must be constant - lib\screens\analytics_screen.dart:458:19 - non_constant_default_value
+  error - Undefined name 'provider' - lib\screens\analytics_screen.dart:459:30 - undefined_identifier
+  error - Undefined name 'strings' - lib\screens\analytics_screen.dart:459:40 - undefined_identifier
+  error - Undefined name 'isDay' - lib\screens\analytics_screen.dart:459:49 - undefined_identifier
+  error - Undefined name 'textColor' - lib\screens\analytics_screen.dart:459:56 - undefined_identifier
+  error - Undefined name 'subtitleColor' - lib\screens\analytics_screen.dart:459:67 - undefined_identifier
+  error - Undefined name 'provider' - lib\screens\analytics_screen.dart:460:33 - undefined_identifier
+  error - Undefined name 'strings' - lib\screens\analytics_screen.dart:460:43 - undefined_identifier
+  error - Undefined name 'isDay' - lib\screens\analytics_screen.dart:460:52 - undefined_identifier
+  error - Undefined name 'textColor' - lib\screens\analytics_screen.dart:460:59 - undefined_identifier
+  error - Undefined name 'subtitleColor' - lib\screens\analytics_screen.dart:460:70 - undefined_identifier
+  error - A function body must be provided - lib\screens\analytics_screen.dart:462:8 - missing_function_body
+  error - Expected a class member - lib\screens\analytics_screen.dart:462:8 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:463:5 - expected_class_member
+  error - Expected a class member - lib\screens\analytics_screen.dart:463:6 - expected_class_member
+warning - The declaration '_buildAnalyticsTab' isn't referenced - lib\screens\analytics_screen.dart:466:10 - unused_element
+  error - Undefined name '_period' - lib\screens\analytics_screen.dart:467:59 - undefined_identifier
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:504:51 - undefined_identifier
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:506:73 - undefined_identifier
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:535:65 - undefined_identifier
+  error - The element type 'String' can't be assigned to the list type 'Widget' - lib\screens\analytics_screen.dart:634:25 - list_element_type_not_assignable
+  error - The argument type 'DateTime?' can't be assigned to the parameter type 'DateTime'.  - lib\screens\analytics_screen.dart:634:47 - argument_type_not_assignable
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:634:67 - undefined_identifier
+  error - Undefined name 'style' - lib\screens\analytics_screen.dart:635:25 - undefined_identifier
+  error - Expected to find ')' - lib\screens\analytics_screen.dart:635:30 - expected_token
+  error - Expected to find ']' - lib\screens\analytics_screen.dart:635:30 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:641:21 - missing_identifier
+  error - Expected to find ')' - lib\screens\analytics_screen.dart:641:21 - expected_token
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:643:17 - expected_token
+warning - Dead code - lib\screens\analytics_screen.dart:643:18 - dead_code
+  error - Expected an identifier - lib\screens\analytics_screen.dart:643:18 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:643:18 - unexpected_token
+warning - The label 'iconColor' isn't used - lib\screens\analytics_screen.dart:644:17 - unused_label
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:644:28 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:644:37 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:644:37 - unexpected_token
+warning - The label 'collapsedIconColor' isn't used - lib\screens\analytics_screen.dart:645:17 - unused_label
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:645:37 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:645:46 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:645:46 - unexpected_token
+warning - The label 'shape' isn't used - lib\screens\analytics_screen.dart:646:17 - unused_label
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:646:37 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:646:38 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:646:38 - unexpected_token
+warning - The label 'collapsedShape' isn't used - lib\screens\analytics_screen.dart:647:17 - unused_label
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:647:46 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:647:47 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:647:47 - unexpected_token
+warning - The label 'childrenPadding' isn't used - lib\screens\analytics_screen.dart:648:17 - unused_label
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:648:73 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:648:74 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:648:74 - unexpected_token
+warning - The label 'children' isn't used - lib\screens\analytics_screen.dart:649:17 - unused_label
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:730:17 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:730:18 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:730:18 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:730:18 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:731:15 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:731:15 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:731:15 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:731:16 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:731:16 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:731:16 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:732:13 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:732:13 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:732:13 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:732:14 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:732:14 - unexpected_token
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:733:38 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:733:39 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:733:39 - unexpected_token
+  error - Undefined name '_period' - lib\screens\analytics_screen.dart:746:35 - undefined_identifier
+  error - The function 'setState' isn't defined - lib\screens\analytics_screen.dart:781:23 - undefined_function
+  error - Undefined name '_period' - lib\screens\analytics_screen.dart:781:38 - undefined_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:786:13 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:786:14 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:786:14 - unexpected_token
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:787:38 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:787:39 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:787:39 - unexpected_token
+   info - Statements in an if should be enclosed in a block - lib\screens\analytics_screen.dart:789:15 - curly_braces_in_flow_control_structures
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:796:15 - expected_token
+   info - Statements in an if should be enclosed in a block - lib\screens\analytics_screen.dart:798:15 - curly_braces_in_flow_control_structures
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:802:33 - undefined_identifier
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:811:37 - undefined_identifier
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:818:33 - undefined_identifier
+  error - Undefined name 'context' - lib\screens\analytics_screen.dart:827:37 - undefined_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:834:15 - expected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:834:16 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:834:16 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:834:16 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:835:11 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:835:11 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:835:11 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:835:12 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:835:12 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:835:12 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:836:9 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:836:9 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:836:9 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:836:10 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:836:10 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:836:10 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:837:7 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:837:7 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:837:7 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:837:8 - missing_identifier
+  error - Expected to find ';' - lib\screens\analytics_screen.dart:837:8 - expected_token
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:837:8 - unexpected_token
+  error - Expected an identifier - lib\screens\analytics_screen.dart:838:5 - missing_identifier
+  error - Unexpected text ';' - lib\screens\analytics_screen.dart:838:5 - unexpected_token
+   info - Unnecessary empty statement - lib\screens\analytics_screen.dart:838:6 - empty_statements
+  error - The function 'setState' isn't defined - lib\screens\analytics_screen.dart:1136:5 - undefined_function
+  error - Undefined name '_selectedNightStartDate' - lib\screens\analytics_screen.dart:1137:7 - undefined_identifier
+  error - Undefined name '_selectedNightStartDate' - lib\screens\analytics_screen.dart:1248:9 - undefined_identifier
+  error - Undefined name '_selectedNightStartDate' - lib\screens\analytics_screen.dart:1250:22 - undefined_identifier
+  error - Expected a method, getter, setter or operator declaration - lib\screens\analytics_screen.dart:1321:1 - expected_executable
+   info - Don't use 'BuildContext's across async gaps - lib\screens\baby_onboarding_screen.dart:161:47 - use_build_context_synchronously
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\screens\baby_onboarding_screen.dart:525:11 - deprecated_member_use
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\screens\main_screen.dart:482:5 - prefer_conditional_assignment
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\main_screen.dart:951:42 - deprecated_member_use
+   info - Unnecessary use of string interpolation - lib\services\firebase_service.dart:156:9 - unnecessary_string_interpolations
+warning - The declaration '<unnamed>' isn't referenced - lib\services\gemini_service.dart:13:7 - unused_element
+  error - The method '_parseResponse' isn't defined for the type 'NvidiaService' - lib\services\gemini_service.dart:97:18 - undefined_method
+  error - The method '_fmt' isn't defined for the type 'NvidiaService' - lib\services\gemini_service.dart:217:39 - undefined_method
+  error - The method '_fmt' isn't defined for the type 'NvidiaService' - lib\services\gemini_service.dart:218:39 - undefined_method
+  error - The method '_fmt' isn't defined for the type 'NvidiaService' - lib\services\gemini_service.dart:259:11 - undefined_method
+  error - The method '_fmt' isn't defined for the type 'NvidiaService' - lib\services\gemini_service.dart:284:20 - undefined_method
+  error - The method '_fmt' isn't defined for the type 'NvidiaService' - lib\services\gemini_service.dart:295:22 - undefined_method
+warning - The declaration '_buildSleepWindowPrompt' isn't referenced - lib\services\gemini_service.dart:310:17 - unused_element
+warning - The declaration '_parseSleepWindowResponse' isn't referenced - lib\services\gemini_service.dart:406:39 - unused_element
+  error - Undefined name 'raw' - lib\services\gemini_service.dart:465:22 - undefined_identifier
+  error - The name 'cleaned' is already defined - lib\services\gemini_service.dart:467:5 - duplicate_definition
+  error - The type of 'cleaned' can't be inferred because it depends on itself through the cycle: cleaned - lib\services\gemini_service.dart:467:5 - top_level_cycle
+  error - Variables must be declared using the keywords 'const', 'final', 'var' or a type name - lib\services\gemini_service.dart:467:5 - missing_const_final_var_or_type
+  error - The instance member 'cleaned' can't be accessed in an initializer - lib\services\gemini_service.dart:467:15 - implicit_this_reference_in_initializer
+  error - The instance member 'cleaned' can't be accessed in an initializer - lib\services\gemini_service.dart:469:41 - implicit_this_reference_in_initializer
+  error - Expected a class member - lib\services\gemini_service.dart:470:5 - expected_class_member
+  error - Expected an identifier - lib\services\gemini_service.dart:470:8 - missing_identifier
+   info - Missing type annotation - lib\services\gemini_service.dart:470:9 - strict_top_level_inference
+  error - Expected to find ')' - lib\services\gemini_service.dart:470:18 - expected_token
+  error - Expected a class member - lib\services\gemini_service.dart:474:5 - expected_class_member
+  error - Expected an identifier - lib\services\gemini_service.dart:474:9 - missing_identifier
+  error - Methods must have an explicit list of parameters - lib\services\gemini_service.dart:474:9 - missing_method_parameters
+  error - The argument type 'String?' can't be assigned to the parameter type 'String'.  - lib\services\gemini_service.dart:475:30 - argument_type_not_assignable
+  error - Expected a class member - lib\services\gemini_service.dart:483:7 - expected_class_member
+  error - Expected an identifier - lib\services\gemini_service.dart:483:13 - missing_identifier
+  error - Can't have modifier 'static' here - lib\services\gemini_service.dart:488:3 - extraneous_modifier
+  error - Expected a method, getter, setter or operator declaration - lib\services\gemini_service.dart:507:1 - expected_executable
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\settings_bottom_sheet.dart:133:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\settings_bottom_sheet.dart:217:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\settings_bottom_sheet.dart:237:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\settings_bottom_sheet.dart:277:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\settings_bottom_sheet.dart:400:53 - deprecated_member_use
+  error - The named parameter 'provider' is required, but there's no corresponding argument - test\widget_test.dart:16:35 - missing_required_argument
+

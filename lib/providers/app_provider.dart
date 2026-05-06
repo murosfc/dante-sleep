@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
+import '../models/sleep_window_prediction.dart';
 import '../models/sync_queue_item.dart';
 import '../services/firebase_service.dart';
 import '../services/gemini_service.dart';
@@ -33,6 +34,8 @@ class AppProvider with ChangeNotifier {
   String? get loadedUserId => _loadedUserId;
   bool get isLoadingAuthUserData => _isLoadingAuthUserData;
   AiSuggestion? aiSuggestion;
+  List<SleepWindowPrediction>? sleepWindowPredictions;
+  DateTime? _lastSleepWindowUpdate;
   int get aiUnreadCount {
     if (aiSuggestion == null || !aiSuggestion!.hasContent) return 0;
     return (aiSuggestion!.nextNapTime != null ? 1 : 0) +
@@ -53,7 +56,7 @@ class AppProvider with ChangeNotifier {
         ? dotenv.env['NVIDIA_MODEL']
         : dotenv.env['GEMINI_MODEL'])
         ?.trim();
-    return value.isEmpty ? null : value;
+    return value != null && value.isEmpty ? null : value;
   }
   bool get hasNvidiaApiKeyConfigured => nvidiaApiKeyFromEnv.isNotEmpty;
   bool get hasPendingAiNotifications =>
@@ -185,6 +188,12 @@ class AppProvider with ChangeNotifier {
         locale = _localeFromStoredLanguage(lang);
       }
 
+      // Update isDay based on current time if theme mode is auto
+      if (visualThemeMode == 'auto') {
+        final now = DateTime.now();
+        isDay = now.hour >= 6 && now.hour < 18;
+      }
+
       // 1.1 User profile
       final userProfile = await FirebaseService().getUserProfile(user.uid);
       userDisplayName = (userProfile['displayName'] as String?)?.trim();
@@ -238,6 +247,7 @@ class AppProvider with ChangeNotifier {
       // 5. Refresh AI suggestions if API key is configured
       if (hasNvidiaApiKeyConfigured && babyProfile != null) {
         refreshAiSuggestions();
+        refreshSleepWindowPredictions(force: true);
       }
     } catch (e) {
       debugPrint('Error loading settings from current user: $e');
@@ -305,6 +315,45 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  Future<void> refreshSleepWindowPredictions({bool force = false}) async {
+    final profile = babyProfile;
+    final apiKey = nvidiaApiKeyFromEnv;
+    if (apiKey.isEmpty || profile == null || entries.length < 3) {
+      sleepWindowPredictions = null;
+      _lastSleepWindowUpdate = null;
+      notifyListeners();
+      return;
+    }
+
+    // Only update once per day in the morning unless forced
+    final now = DateTime.now();
+    if (!force && _lastSleepWindowUpdate != null &&
+        now.difference(_lastSleepWindowUpdate!).inHours < 18) {
+      if (sleepWindowPredictions == null) {
+        sleepWindowPredictions = [];
+        notifyListeners();
+      }
+      return;
+    }
+
+    sleepWindowPredictions = null; // Clear while loading
+    notifyListeners();
+
+    final result = await GeminiService.getSleepWindowPredictions(
+      apiKey: apiKey,
+      profile: profile,
+      entries: entries,
+      languageCode: locale.languageCode,
+      preferredModel: nvidiaModelFromEnv,
+    );
+
+    sleepWindowPredictions = result ?? [];
+    if (result != null) {
+      _lastSleepWindowUpdate = now;
+    }
+    notifyListeners();
+  }
+
   void clearUserData() {
     entries.clear();
     selectedIndex = null;
@@ -333,6 +382,10 @@ class AppProvider with ChangeNotifier {
   void setVisualThemeMode(String mode) {
     if (mode != 'auto' && mode != 'day' && mode != 'night') return;
     visualThemeMode = mode;
+    if (mode == 'auto') {
+      final now = DateTime.now();
+      isDay = now.hour >= 6 && now.hour < 18;
+    }
     notifyListeners();
     saveData();
     _syncSettingsToFirestore();
@@ -367,6 +420,7 @@ class AppProvider with ChangeNotifier {
     _syncToFirestore();
     // Refresh AI suggestions after every sleep event
     refreshAiSuggestions();
+    refreshSleepWindowPredictions(force: true);
   }
 
   void toggleBottle() {
