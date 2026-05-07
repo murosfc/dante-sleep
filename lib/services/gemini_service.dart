@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -14,6 +15,7 @@ class NvidiaService {
 
   static const _invokeUrl =
       'https://integrate.api.nvidia.com/v1/chat/completions';
+  static const _requestTimeout = Duration(seconds: 45);
 
   static Future<AiSuggestion?> getSuggestions({
     required String apiKey,
@@ -41,7 +43,12 @@ class NvidiaService {
 
       Object? lastError;
       for (final modelName in modelsToTry) {
+        final stopwatch = Stopwatch()..start();
         try {
+          debugPrint(
+            '[AI_SUGGESTION] NVIDIA request start model=$modelName entries=${entries.length} promptChars=${prompt.length}',
+          );
+
           final response = await http
               .post(
                 Uri.parse(_invokeUrl),
@@ -63,12 +70,19 @@ class NvidiaService {
                   'stream': false,
                 }),
               )
-              .timeout(const Duration(seconds: 30));
+              .timeout(_requestTimeout);
+
+          debugPrint(
+            '[AI_SUGGESTION] NVIDIA response model=$modelName status=${response.statusCode} elapsedMs=${stopwatch.elapsedMilliseconds} bodyChars=${response.body.length}',
+          );
 
           if (response.statusCode >= 400) {
             final body = response.body;
             if (_isModelNotSupportedError(body)) {
               lastError = body;
+              debugPrint(
+                '[AI_SUGGESTION] NVIDIA unsupported model=$modelName elapsedMs=${stopwatch.elapsedMilliseconds}',
+              );
               continue;
             }
             throw HttpException(
@@ -93,11 +107,21 @@ class NvidiaService {
           }
 
           final text = (message['content'] as String?) ?? '';
+          debugPrint(
+            '[AI_SUGGESTION] NVIDIA parse start model=$modelName elapsedMs=${stopwatch.elapsedMilliseconds} contentChars=${text.length}',
+          );
           return _parseResponse(text, isPt: isPt);
+        } on TimeoutException catch (e) {
+          lastError = e;
+          debugPrint(
+            '[AI_SUGGESTION] NVIDIA timeout model=$modelName afterMs=${stopwatch.elapsedMilliseconds} timeoutMs=${_requestTimeout.inMilliseconds}',
+          );
         } catch (e) {
           lastError = e;
           if (!_isModelNotSupportedError(e.toString())) {
-            debugPrint('NvidiaService error ($modelName): $e');
+            debugPrint(
+              '[AI_SUGGESTION] NVIDIA error model=$modelName elapsedMs=${stopwatch.elapsedMilliseconds}: $e',
+            );
             return AiSuggestion(error: e.toString());
           }
         }
@@ -174,15 +198,14 @@ Determine:
 1. Se for período DIURNO: horário ideal da PRÓXIMA SONECA (use janela de vigília/tempo acordado desde o último acordar)
 2. Se for fim da tarde e faltar no máximo 90 min para a rotina noturna: você PODE sugerir soneca ponte curta
 3. Soneca ponte NUNCA deve ser sugerida de manhã
-4. Se for período NOTURNO: NÃO usar janela de vigília para mamadas noturnas; apenas prever o horário final de acordar de manhã
-5. Horário para INICIAR A ROTINA NOTURNA (considere $routineMin min de rotina para dormir às $targetBed), somente quando fizer sentido no período diurno
+4. Horário para INICIAR A ROTINA NOTURNA (considere $routineMin min de rotina para dormir às $targetBed), somente quando fizer sentido no período diurno
 
 IMPORTANTE DE IDIOMA:
 - Responda em português do Brasil
 - Não use termos em inglês como "wake time" ou "wake window"; use "tempo acordado" ou "janela de vigília"
 
 RESPONDA APENAS com JSON válido, sem texto adicional:
-{"nextNapTime":"HH:mm|null","nextNapRationale":"1 frase explicando","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 frase explicando","nightWakeTime":"HH:mm|null","nightWakeRationale":"1 frase explicando"}''';
+{"nextNapTime":"HH:mm|null","nextNapRationale":"1 frase explicando","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 frase explicando"}''';
     } else {
       return '''You are an evidence-based pediatric sleep expert. Provide precise, practical suggestions.
 
@@ -208,11 +231,10 @@ Determine:
 1. If it's DAYTIME: ideal time for the NEXT NAP (use age-appropriate wake window since last wake-up)
 2. A bridge nap is allowed only near bedtime (up to 90 minutes before the bedtime routine)
 3. Never suggest a bridge nap in the morning
-4. If it's NIGHTTIME: do not apply wake windows to feed-and-back-to-sleep events; only estimate final morning wake-up
-5. Time to START THE NIGHT ROUTINE ($routineMin min routine to sleep at $targetBed), only when it is applicable during daytime
+4. Time to START THE NIGHT ROUTINE ($routineMin min routine to sleep at $targetBed), only when it is applicable during daytime
 
 RESPOND ONLY with valid JSON, no additional text:
-{"nextNapTime":"HH:mm|null","nextNapRationale":"1 sentence explanation","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 sentence explanation","nightWakeTime":"HH:mm|null","nightWakeRationale":"1 sentence explanation"}''';
+{"nextNapTime":"HH:mm|null","nextNapRationale":"1 sentence explanation","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 sentence explanation"}''';
     }
   }
 

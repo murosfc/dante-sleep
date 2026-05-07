@@ -49,10 +49,22 @@ class AppProvider with ChangeNotifier {
     if (primary.isNotEmpty) return primary;
     const definePrimary = String.fromEnvironment('NVIDIA_API_KEY');
     if (definePrimary.isNotEmpty) return definePrimary;
-    // Legacy fallback for previous Gemini-based configuration.
+
+    // Legacy alias kept for older local env files.
     final legacy = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
-    if (legacy.isNotEmpty) return legacy;
+    if (legacy.isNotEmpty) {
+      debugPrint(
+        'AI config: using legacy GEMINI_API_KEY as fallback for NVIDIA.',
+      );
+      return legacy;
+    }
+
     const defineLegacy = String.fromEnvironment('GEMINI_API_KEY');
+    if (defineLegacy.isNotEmpty) {
+      debugPrint(
+        'AI config: using legacy --dart-define=GEMINI_API_KEY as fallback for NVIDIA.',
+      );
+    }
     return defineLegacy;
   }
 
@@ -63,6 +75,14 @@ class AppProvider with ChangeNotifier {
         ? dotenv.env['NVIDIA_MODEL']
         : dotenv.env['GEMINI_MODEL'])
         ?.trim();
+
+    if ((dotenv.env['NVIDIA_MODEL'] ?? '').trim().isEmpty &&
+        (dotenv.env['GEMINI_MODEL'] ?? '').trim().isNotEmpty) {
+      debugPrint(
+        'AI config: using legacy GEMINI_MODEL as fallback for NVIDIA model selection.',
+      );
+    }
+
     return (value == null || value.isEmpty) ? null : value;
   }
   List<SleepWindowPrediction>? get sleepWindowPredictions =>
@@ -306,6 +326,42 @@ class AppProvider with ChangeNotifier {
     aiSuggestion = const AiSuggestion.loading();
     notifyListeners();
 
+    final isNightMode = _isNightContext();
+    if (isNightMode) {
+      final nightForecast = _calculateNightWakeForecast(
+        profile,
+        isPt: locale.languageCode == 'pt',
+      );
+      aiSuggestion = AiSuggestion(
+        nextNapTime: null,
+        nextNapRationale: null,
+        bedtimeRoutineStart: null,
+        bedtimeRationale: null,
+        nightWakeTime: nightForecast.time,
+        nightWakeRationale: nightForecast.rationale,
+        generatedAt: DateTime.now(),
+      );
+      notifyListeners();
+
+      try {
+        await NotificationService.scheduleAiSuggestions(
+          napTime: null,
+          napRationale: null,
+          routineStart: null,
+          routineRationale: null,
+          nightWakeTime: aiSuggestion!.nightWakeTime,
+          nightWakeRationale: aiSuggestion!.nightWakeRationale,
+          isPt: locale.languageCode == 'pt',
+          userName: userDisplayName,
+          babyName: profile.name,
+          babySex: profile.sex,
+        );
+      } catch (e) {
+        debugPrint('NotificationService error: $e');
+      }
+      return;
+    }
+
     final result = await GeminiService.getSuggestions(
       apiKey: apiKey,
       profile: profile,
@@ -314,27 +370,11 @@ class AppProvider with ChangeNotifier {
       preferredModel: nvidiaModelFromEnv,
     );
 
-    final isNightMode = _isNightContext();
-    final nightForecast = _calculateNightWakeForecast(profile, isPt: locale.languageCode == 'pt');
-
     aiSuggestion = result;
     if (result?.error != null) {
       debugPrint('AI suggestion full error: ${result!.error}');
     }
-    if (isNightMode) {
-      aiSuggestion = AiSuggestion(
-        nextNapTime: null,
-        nextNapRationale: null,
-        bedtimeRoutineStart: null,
-        bedtimeRationale: null,
-        nightWakeTime: nightForecast.time,
-        nightWakeRationale: nightForecast.rationale,
-        generatedAt: result?.generatedAt ?? DateTime.now(),
-        error: result?.error,
-      );
-    } else {
-      aiSuggestion = _removeMorningBridgeNap(aiSuggestion);
-    }
+    aiSuggestion = _removeMorningBridgeNap(aiSuggestion);
     notifyListeners();
 
     // Schedule local notifications for the suggested times
