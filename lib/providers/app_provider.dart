@@ -6,6 +6,7 @@ import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -46,8 +47,13 @@ class AppProvider with ChangeNotifier {
   String get nvidiaApiKeyFromEnv {
     final primary = (dotenv.env['NVIDIA_API_KEY'] ?? '').trim();
     if (primary.isNotEmpty) return primary;
+    const definePrimary = String.fromEnvironment('NVIDIA_API_KEY');
+    if (definePrimary.isNotEmpty) return definePrimary;
     // Legacy fallback for previous Gemini-based configuration.
-    return (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+    final legacy = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+    if (legacy.isNotEmpty) return legacy;
+    const defineLegacy = String.fromEnvironment('GEMINI_API_KEY');
+    return defineLegacy;
   }
 
   String? get nvidiaModelFromEnv {
@@ -276,7 +282,25 @@ class AppProvider with ChangeNotifier {
   Future<void> refreshAiSuggestions() async {
     final profile = babyProfile;
     final apiKey = nvidiaApiKeyFromEnv;
-    if (apiKey.isEmpty || profile == null) return;
+    if (apiKey.isEmpty) {
+      debugPrint(
+        'AI suggestion error: NVIDIA_API_KEY missing (.env or --dart-define).',
+      );
+      aiSuggestion = const AiSuggestion(
+        error:
+            'NVIDIA_API_KEY não encontrada. Configure .env ou --dart-define=NVIDIA_API_KEY.',
+      );
+      notifyListeners();
+      return;
+    }
+    if (profile == null) {
+      debugPrint('AI suggestion error: baby profile not found.');
+      aiSuggestion = const AiSuggestion(
+        error: 'Perfil do bebê não encontrado. Complete o onboarding.',
+      );
+      notifyListeners();
+      return;
+    }
 
     _aiSuggestionsRead = false;
     aiSuggestion = const AiSuggestion.loading();
@@ -294,6 +318,9 @@ class AppProvider with ChangeNotifier {
     final nightForecast = _calculateNightWakeForecast(profile, isPt: locale.languageCode == 'pt');
 
     aiSuggestion = result;
+    if (result?.error != null) {
+      debugPrint('AI suggestion full error: ${result!.error}');
+    }
     if (isNightMode) {
       aiSuggestion = AiSuggestion(
         nextNapTime: null,
