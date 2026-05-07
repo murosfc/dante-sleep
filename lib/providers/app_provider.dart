@@ -44,39 +44,20 @@ class AppProvider with ChangeNotifier {
       (aiSuggestion!.nightWakeTime != null ? 1 : 0);
   }
   bool _aiSuggestionsRead = false;
-  String get aiApiKeyFromEnv {
-    final openAiPrimary = (dotenv.env['OPEN_AI_API_KEY'] ?? '').trim();
-    if (openAiPrimary.isNotEmpty) return openAiPrimary;
-    final openAiAlt = (dotenv.env['OPENAI_API_KEY'] ?? '').trim();
-    if (openAiAlt.isNotEmpty) return openAiAlt;
-
-    const defineOpenAiPrimary = String.fromEnvironment('OPEN_AI_API_KEY');
-    if (defineOpenAiPrimary.isNotEmpty) return defineOpenAiPrimary;
-    const defineOpenAiAlt = String.fromEnvironment('OPENAI_API_KEY');
-    if (defineOpenAiAlt.isNotEmpty) return defineOpenAiAlt;
-
-    // Legacy fallback for previous providers.
-    final legacyNvidia = (dotenv.env['NVIDIA_API_KEY'] ?? '').trim();
-    if (legacyNvidia.isNotEmpty) return legacyNvidia;
-    const defineLegacyNvidia = String.fromEnvironment('NVIDIA_API_KEY');
-    if (defineLegacyNvidia.isNotEmpty) return defineLegacyNvidia;
-
-    final legacyGemini = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
-    if (legacyGemini.isNotEmpty) return legacyGemini;
-    const defineLegacyGemini = String.fromEnvironment('GEMINI_API_KEY');
-    return defineLegacyGemini;
+  String get nvidiaApiKeyFromEnv {
+    final primary = (dotenv.env['NVIDIA_API_KEY'] ?? '').trim();
+    if (primary.isNotEmpty) return primary;
+    const definePrimary = String.fromEnvironment('NVIDIA_API_KEY');
+    if (definePrimary.isNotEmpty) return definePrimary;
+    // Legacy fallback for previous Gemini-based configuration.
+    final legacy = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+    if (legacy.isNotEmpty) return legacy;
+    const defineLegacy = String.fromEnvironment('GEMINI_API_KEY');
+    return defineLegacy;
   }
 
-  String? get aiModelFromEnv {
-    final value = ((dotenv.env['OPEN_AI_MODEL'] ?? '')
-            .trim()
-            .isNotEmpty
-        ? dotenv.env['OPEN_AI_MODEL']
-        : (dotenv.env['OPENAI_MODEL'] ?? '')
-            .trim()
-            .isNotEmpty
-            ? dotenv.env['OPENAI_MODEL']
-            : (dotenv.env['NVIDIA_MODEL'] ?? '')
+  String? get nvidiaModelFromEnv {
+    final value = ((dotenv.env['NVIDIA_MODEL'] ?? '')
             .trim()
             .isNotEmpty
         ? dotenv.env['NVIDIA_MODEL']
@@ -86,7 +67,7 @@ class AppProvider with ChangeNotifier {
   }
   List<SleepWindowPrediction>? get sleepWindowPredictions =>
       _sleepWindowPredictions;
-  bool get hasAiApiKeyConfigured => aiApiKeyFromEnv.isNotEmpty;
+  bool get hasNvidiaApiKeyConfigured => nvidiaApiKeyFromEnv.isNotEmpty;
   bool get hasPendingAiNotifications =>
       !_aiSuggestionsRead && aiUnreadCount > 0;
   void markAiSuggestionsRead() {
@@ -268,7 +249,7 @@ class AppProvider with ChangeNotifier {
       await _syncToFirestore();
 
       // 5. Refresh AI suggestions if API key is configured
-      if (hasAiApiKeyConfigured && babyProfile != null) {
+      if (hasNvidiaApiKeyConfigured && babyProfile != null) {
         refreshAiSuggestions();
       }
     } catch (e) {
@@ -300,14 +281,14 @@ class AppProvider with ChangeNotifier {
   // ─── AI suggestions ────────────────────────────────────────────────────────
   Future<void> refreshAiSuggestions() async {
     final profile = babyProfile;
-    final apiKey = aiApiKeyFromEnv;
+    final apiKey = nvidiaApiKeyFromEnv;
     if (apiKey.isEmpty) {
       debugPrint(
-        'AI suggestion error: OPEN_AI_API_KEY/OPENAI_API_KEY missing (.env or --dart-define).',
+        'AI suggestion error: NVIDIA_API_KEY missing (.env or --dart-define).',
       );
       aiSuggestion = const AiSuggestion(
         error:
-            'OPEN_AI_API_KEY não encontrada. Configure .env ou --dart-define=OPEN_AI_API_KEY.',
+            'NVIDIA_API_KEY não encontrada. Configure .env ou --dart-define=NVIDIA_API_KEY.',
       );
       notifyListeners();
       return;
@@ -330,7 +311,7 @@ class AppProvider with ChangeNotifier {
       profile: profile,
       entries: entries,
       languageCode: locale.languageCode,
-      preferredModel: aiModelFromEnv,
+      preferredModel: nvidiaModelFromEnv,
     );
 
     final isNightMode = _isNightContext();

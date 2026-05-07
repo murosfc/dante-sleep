@@ -9,11 +9,11 @@ import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
 
-class OpenAiService {
-  OpenAiService._();
+class NvidiaService {
+  NvidiaService._();
 
   static const _invokeUrl =
-      'https://api.openai.com/v1/chat/completions';
+      'https://integrate.api.nvidia.com/v1/chat/completions';
 
   static Future<AiSuggestion?> getSuggestions({
     required String apiKey,
@@ -27,8 +27,8 @@ class OpenAiService {
     final modelsToTry = <String>[
       if (preferredModel != null && preferredModel.trim().isNotEmpty)
         preferredModel.trim(),
-      'gpt-4o-mini',
-      'gpt-4.1-mini',
+      'meta/llama-4-maverick-17b-128e-instruct',
+      'meta/llama-3.1-70b-instruct',
     ].toSet().toList();
 
     try {
@@ -55,9 +55,12 @@ class OpenAiService {
                   'messages': [
                     {'role': 'user', 'content': prompt},
                   ],
-                  'response_format': {'type': 'json_object'},
                   'max_tokens': 512,
                   'temperature': 0.3,
+                  'top_p': 1.0,
+                  'frequency_penalty': 0.0,
+                  'presence_penalty': 0.0,
+                  'stream': false,
                 }),
               )
               .timeout(const Duration(seconds: 30));
@@ -69,24 +72,24 @@ class OpenAiService {
               continue;
             }
             throw HttpException(
-              'OpenAI API error ${response.statusCode}: $body',
+              'NVIDIA API error ${response.statusCode}: $body',
             );
           }
 
           final decoded = jsonDecode(response.body) as Map<String, dynamic>;
           final choices = decoded['choices'];
           if (choices is! List || choices.isEmpty) {
-            throw const FormatException('Invalid OpenAI response: no choices');
+            throw const FormatException('Invalid NVIDIA response: no choices');
           }
 
           final first = choices.first;
           if (first is! Map<String, dynamic>) {
-            throw const FormatException('Invalid OpenAI response: bad choice');
+            throw const FormatException('Invalid NVIDIA response: bad choice');
           }
 
           final message = first['message'];
           if (message is! Map<String, dynamic>) {
-            throw const FormatException('Invalid OpenAI response: no message');
+            throw const FormatException('Invalid NVIDIA response: no message');
           }
 
           final text = (message['content'] as String?) ?? '';
@@ -94,18 +97,18 @@ class OpenAiService {
         } catch (e) {
           lastError = e;
           if (!_isModelNotSupportedError(e.toString())) {
-            debugPrint('OpenAiService error ($modelName): $e');
+            debugPrint('NvidiaService error ($modelName): $e');
             return AiSuggestion(error: e.toString());
           }
         }
       }
 
       final message = lastError?.toString() ??
-          'No compatible OpenAI model found for this API key/project.';
-      debugPrint('OpenAiService model fallback error: $message');
+          'No compatible NVIDIA model found for this API key/project.';
+      debugPrint('NvidiaService model fallback error: $message');
       return AiSuggestion(error: message);
     } catch (e) {
-      debugPrint('OpenAiService error: $e');
+      debugPrint('NvidiaService error: $e');
       return AiSuggestion(error: e.toString());
     }
   }
@@ -386,7 +389,7 @@ class GeminiService {
     required String languageCode,
     String? preferredModel,
   }) {
-    return OpenAiService.getSuggestions(
+    return NvidiaService.getSuggestions(
       apiKey: apiKey,
       profile: profile,
       entries: entries,
