@@ -47,6 +47,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
         title: Text(strings.analyticsTitle),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: isDay ? const Color(0xFF12233F) : const Color(0xFFFFFFFF),
+          unselectedLabelColor:
+              isDay ? const Color(0xFF4B6287) : const Color(0xFFD0BEEB),
+          indicatorColor: isDay ? const Color(0xFF12233F) : const Color(0xFFFFFFFF),
+          indicatorWeight: 3,
           tabs: [
             Tab(text: strings.sleepAwakeTrend),
             Tab(text: _t(context, 'Previsão de Janelas', 'Sleep Windows')),

@@ -297,9 +297,67 @@ RESPOND ONLY with valid JSON, no additional text:
         nightWakeRationale: nightWakeRationale,
         generatedAt: DateTime.now(),
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('AI parse error (jsonDecode): $e');
+      debugPrint('AI raw response: $raw');
+      debugPrint('AI cleaned response: $cleaned');
+
+      final fallback = _parseLooseJsonLike(cleaned, isPt: isPt);
+      if (fallback != null) {
+        debugPrint('AI parse recovered via loose parser');
+        return fallback;
+      }
+
       return const AiSuggestion(error: 'Could not parse AI response');
     }
+  }
+
+  static AiSuggestion? _parseLooseJsonLike(String text, {required bool isPt}) {
+    String? pick(String key) {
+      final quoted = RegExp('"$key"\\s*:\\s*"([^"]*)"');
+      final quotedMatch = quoted.firstMatch(text);
+      if (quotedMatch != null) return quotedMatch.group(1);
+
+      final bare = RegExp('"$key"\\s*:\\s*([^,}\\n]+)');
+      final bareMatch = bare.firstMatch(text);
+      if (bareMatch == null) return null;
+      return bareMatch.group(1)?.trim().replaceAll('"', '');
+    }
+
+    final nextNapTime = _normalizeTime(pick('nextNapTime'));
+    final nextNapRationale = _normalizeRationale(
+      pick('nextNapRationale'),
+      isPt: isPt,
+    );
+    final bedtimeRoutineStart = _normalizeTime(pick('bedtimeRoutineStart'));
+    final bedtimeRationale = _normalizeRationale(
+      pick('bedtimeRationale'),
+      isPt: isPt,
+    );
+    final nightWakeTime = _normalizeTime(pick('nightWakeTime'));
+    final nightWakeRationale = _normalizeRationale(
+      pick('nightWakeRationale'),
+      isPt: isPt,
+    );
+
+    final hasAnyContent = nextNapTime != null ||
+        bedtimeRoutineStart != null ||
+        nightWakeTime != null ||
+        (nextNapRationale?.isNotEmpty ?? false) ||
+        (bedtimeRationale?.isNotEmpty ?? false) ||
+        (nightWakeRationale?.isNotEmpty ?? false);
+
+    if (!hasAnyContent) return null;
+
+    return AiSuggestion(
+      nextNapTime: nextNapTime,
+      nextNapRationale: nextNapRationale,
+      bedtimeRoutineStart: bedtimeRoutineStart,
+      bedtimeRationale: bedtimeRationale,
+      nightWakeTime: nightWakeTime,
+      nightWakeRationale: nightWakeRationale,
+      generatedAt: DateTime.now(),
+    );
   }
 
   static String? _normalizeTime(String? value) {

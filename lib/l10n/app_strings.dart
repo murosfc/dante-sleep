@@ -197,7 +197,7 @@ class AppStringsPortuguese {
   static const String period7Days = 'Últimos 7 dias';
   static const String period14Days = 'Últimos 14 dias';
   static const String period30Days = 'Últimos 30 dias';
-  static const String sleepAwakeTrend = 'Evolução sono x acordado';
+  static const String sleepAwakeTrend = 'Sono x acordado';
   static const String dailySleepDistribution = 'Distribuição diária de sono';
   static const String hoursUnit = 'h';
   static const String noDataForPeriod = 'Sem dados para o período selecionado';
