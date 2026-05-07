@@ -17,6 +17,7 @@ class NotificationService {
   static const _channelName = 'AI Sleep Suggestions';
   static const int _napNotifId = 1001;
   static const int _bedtimeNotifId = 1002;
+  static const int _nightWakeNotifId = 1003;
 
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -61,6 +62,8 @@ class NotificationService {
     required String? napRationale,
     required String? routineStart,
     required String? routineRationale,
+    required String? nightWakeTime,
+    required String? nightWakeRationale,
     required bool isPt,
     String? userName,
     String? babyName,
@@ -70,6 +73,26 @@ class NotificationService {
     await cancelAll();
 
     final now = DateTime.now();
+
+    if (nightWakeTime != null) {
+      final scheduled = _parseToday(nightWakeTime, now);
+      if (scheduled != null && scheduled.isAfter(now)) {
+        await _schedule(
+          id: _nightWakeNotifId,
+          title: _nightWakeTitle(isPt: isPt, babyName: babyName, babySex: babySex),
+          body: _composeBody(
+            isPt: isPt,
+            userName: userName,
+            babyName: babyName,
+            babySex: babySex,
+            rationale: nightWakeRationale,
+            fallbackTime: nightWakeTime,
+          ),
+          scheduledTime: scheduled,
+        );
+      }
+      return;
+    }
 
     if (napTime != null) {
       final scheduled = _parseToday(napTime, now);
@@ -144,6 +167,18 @@ class NotificationService {
     return hasBaby
         ? '🌙 Start $babyNameTrimmed\'s bedtime routine'
         : '🌙 Start bedtime routine';
+  }
+
+  static String _nightWakeTitle({required bool isPt, String? babyName, String? babySex}) {
+    final hasBaby = babyName != null && babyName.trim().isNotEmpty;
+    if (isPt) {
+      return hasBaby
+          ? '🌅 Previsão de acordar de ${babyName!.trim()}'
+          : '🌅 Previsão de acordar ${_ptPossessiveBaby(babySex)}';
+    }
+    return hasBaby
+        ? '🌅 ${babyName!.trim()} wake-up forecast'
+        : '🌅 Baby wake-up forecast';
   }
 
   static String _composeBody({

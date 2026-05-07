@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/localized_strings.dart';
 import '../providers/app_provider.dart';
+import '../services/firebase_service.dart';
 import '../widgets/settings_bottom_sheet.dart';
 import 'analytics_screen.dart';
 
@@ -19,9 +20,7 @@ class MainScreen extends StatelessWidget {
         final isVisualDay = provider.isVisualDay;
         final isDay = isVisualDay;
         final isDayPeriod = provider.isDay;
-        final textColor = isVisualDay
-            ? const Color(0xFF12233F)
-            : const Color(0xFFF2ECFF);
+        final textColor = isVisualDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
         final subtitleColor = isVisualDay
             ? const Color(0xFF4B6287)
             : const Color(0xFFB8A7D5);
@@ -38,14 +37,7 @@ class MainScreen extends StatelessWidget {
                     icon: const Icon(Icons.notifications_outlined),
                     onPressed: () {
                       provider.markAiSuggestionsRead();
-                      _showAiSuggestionsDialog(
-                        context,
-                        provider,
-                        strings,
-                        isVisualDay,
-                        textColor,
-                        subtitleColor,
-                      );
+                      _showAiSuggestionsDialog(context, provider, strings, isVisualDay, textColor, subtitleColor);
                     },
                   ),
                   if (provider.hasPendingAiNotifications)
@@ -231,107 +223,112 @@ class MainScreen extends StatelessWidget {
                 //       )
                 //     : ListView.builder(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  itemCount: provider.entries.length,
-                  itemBuilder: (context, index) {
-                    final entry = provider.entries[index];
-                    final sleepTime = entry.getSleepTime(
-                      provider.entries,
-                      index,
-                    );
-                    final awakeTime = entry.getAwakeTime(
-                      provider.entries,
-                      index,
-                    );
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          gradient: LinearGradient(
-                            colors: isDay
-                                ? const [Color(0xFFFFFFFF), Color(0xFFF6FAFF)]
-                                : const [Color(0xFF211531), Color(0xFF170F24)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onLongPress: () => _editDateTime(
-                                        context,
-                                        provider,
-                                        index,
-                                        false,
-                                      ),
-                                      child: _buildTimeBlock(
-                                        strings.dormiu,
-                                        entry.getFormattedSlept(
-                                          provider.locale,
-                                          provider.is24Hour,
-                                        ),
-                                        textColor,
-                                        subtitleColor,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onLongPress: () => _editDateTime(
-                                        context,
-                                        provider,
-                                        index,
-                                        true,
-                                      ),
-                                      child: _buildTimeBlock(
-                                        strings.acordou,
-                                        entry.getFormattedWokeUp(
-                                          provider.locale,
-                                          provider.is24Hour,
-                                        ),
-                                        textColor,
-                                        subtitleColor,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    onPressed: () =>
-                                        provider.toggleEntryExpanded(index),
-                                    icon: Icon(
-                                      entry.isExpanded
-                                          ? Icons.expand_more
-                                          : Icons.chevron_right,
-                                      color: textColor,
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                ],
+                        itemCount: provider.entries.length,
+                        itemBuilder: (context, index) {
+                          final entry = provider.entries[index];
+                          final sleepTime = entry.getSleepTime(
+                            provider.entries,
+                            index,
+                          );
+                          final awakeTime = entry.getAwakeTime(
+                            provider.entries,
+                            index,
+                          );
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                gradient: LinearGradient(
+                                  colors: isDay
+                                      ? const [
+                                          Color(0xFFFFFFFF),
+                                          Color(0xFFF6FAFF),
+                                        ]
+                                      : const [
+                                          Color(0xFF211531),
+                                          Color(0xFF170F24),
+                                        ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
                               ),
-                              if (entry.isExpanded) ...[
-                                const SizedBox(height: 12),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onLongPress: () => _editDateTime(
+                                              context,
+                                              provider,
+                                              index,
+                                              false,
+                                            ),
+                                            child: _buildTimeBlock(
+                                              strings.dormiu,
+                                              entry.getFormattedSlept(
+                                                provider.locale,
+                                                provider.is24Hour,
+                                              ),
+                                              textColor,
+                                              subtitleColor,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onLongPress: () => _editDateTime(
+                                              context,
+                                              provider,
+                                              index,
+                                              true,
+                                            ),
+                                            child: _buildTimeBlock(
+                                              strings.acordou,
+                                              entry.getFormattedWokeUp(
+                                                provider.locale,
+                                                provider.is24Hour,
+                                              ),
+                                              textColor,
+                                              subtitleColor,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          onPressed: () =>
+                                              provider.toggleEntryExpanded(index),
+                                          icon: Icon(
+                                            entry.isExpanded
+                                                ? Icons.expand_more
+                                                : Icons.chevron_right,
+                                            color: textColor,
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ],
+                                    ),
+                                    if (entry.isExpanded) ...[
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
+                                          Expanded(
+                                            child: Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
                                           ActionChip(
                                             backgroundColor: isDay
                                                 ? const Color(0xFFDDEBFF)
@@ -347,19 +344,13 @@ class MainScreen extends StatelessWidget {
                                               entry.isDay
                                                   ? strings.dayLabel
                                                   : strings.nightLabel,
-                                              style: TextStyle(
-                                                color: textColor,
-                                              ),
+                                              style: TextStyle(color: textColor),
                                             ),
-                                            onPressed: () => provider
-                                                .updateEntryPeriod(index),
+                                            onPressed: () =>
+                                                provider.updateEntryPeriod(index),
                                           ),
                                           GestureDetector(
-                                            onLongPress: () => _editBottleTime(
-                                              context,
-                                              provider,
-                                              index,
-                                            ),
+                                            onLongPress: () => _editBottleTime(context, provider, index),
                                             child: ActionChip(
                                               backgroundColor: isDay
                                                   ? const Color(0xFFDDEBFF)
@@ -368,22 +359,13 @@ class MainScreen extends StatelessWidget {
                                                 'assets/icons/bottle.svg',
                                                 width: 18,
                                                 height: 18,
-                                                colorFilter: isDay
-                                                    ? const ColorFilter.mode(
-                                                        Colors.black,
-                                                        BlendMode.srcIn,
-                                                      )
-                                                    : null,
+                                                colorFilter: isDay ? const ColorFilter.mode(Colors.black, BlendMode.srcIn) : null,
                                               ),
                                               label: Text(
                                                 entry.bottle
-                                                    ? (entry.bottleTime != null
-                                                          ? '${strings.mamou} ${entry.getFormattedBottleTime(provider.locale, provider.is24Hour)}'
-                                                          : strings.mamou)
+                                                    ? (entry.bottleTime != null ? '${strings.mamou} ${entry.getFormattedBottleTime(provider.locale, provider.is24Hour)}' : strings.mamou)
                                                     : strings.didNotFeed,
-                                                style: TextStyle(
-                                                  color: textColor,
-                                                ),
+                                                style: TextStyle(color: textColor),
                                               ),
                                               onPressed: () => provider
                                                   .updateSelectedBottle(index),
@@ -394,18 +376,10 @@ class MainScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 8),
                                     PopupMenuButton<String>(
-                                      icon: Icon(
-                                        Icons.more_vert,
-                                        color: textColor,
-                                      ),
+                                      icon: Icon(Icons.more_vert, color: textColor),
                                       onSelected: (value) {
                                         if (value == 'delete') {
-                                          _deleteEntryConfirm(
-                                            context,
-                                            provider,
-                                            strings,
-                                            index,
-                                          );
+                                          _deleteEntryConfirm(context, provider, strings, index);
                                         }
                                       },
                                       itemBuilder: (context) => [
@@ -413,10 +387,7 @@ class MainScreen extends StatelessWidget {
                                           value: 'delete',
                                           child: Row(
                                             children: [
-                                              const Icon(
-                                                Icons.delete_outline,
-                                                size: 20,
-                                              ),
+                                              const Icon(Icons.delete_outline, size: 20),
                                               const SizedBox(width: 8),
                                               Text(strings.deleteButton),
                                             ],
@@ -429,8 +400,7 @@ class MainScreen extends StatelessWidget {
                                 const SizedBox(height: 12),
                                 IntrinsicHeight(
                                   child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
                                       Expanded(
                                         child: _buildMetricBlock(
@@ -455,18 +425,88 @@ class MainScreen extends StatelessWidget {
                                   ),
                                 ),
                               ],
-                            ],
-                          ),
-                        ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-              ),
+            ),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _showLanguageDialog(
+    BuildContext context,
+    AppProvider provider,
+    LocalizedStrings strings,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          strings.selectLanguage,
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(strings.english),
+              onTap: () {
+                provider.setLanguage('en');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: Text(strings.portuguese),
+              onTap: () {
+                provider.setLanguage('pt');
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTimeFormatDialog(
+    BuildContext context,
+    AppProvider provider,
+    LocalizedStrings strings,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          strings.timeFormatTitle,
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(strings.hourFormat24),
+              onTap: () {
+                provider.set24Hour(true);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: Text(strings.hourFormat12),
+              onTap: () {
+                provider.set24Hour(false);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -480,10 +520,7 @@ class MainScreen extends StatelessWidget {
         ? provider.entries[index].wokeUp
         : provider.entries[index].slept;
     if (current == null) {
-      current =
-          provider.entries[index].slept ??
-          provider.entries[index].wokeUp ??
-          DateTime.now();
+      current = provider.entries[index].slept ?? provider.entries[index].wokeUp ?? DateTime.now();
     }
     DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -498,9 +535,9 @@ class MainScreen extends StatelessWidget {
         initialTime: TimeOfDay.fromDateTime(current),
         builder: (context, child) {
           return MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(alwaysUse24HourFormat: provider.is24Hour),
+            data: MediaQuery.of(context).copyWith(
+              alwaysUse24HourFormat: provider.is24Hour,
+            ),
             child: child ?? const SizedBox.shrink(),
           );
         },
@@ -523,11 +560,7 @@ class MainScreen extends StatelessWidget {
     }
   }
 
-  void _editBottleTime(
-    BuildContext context,
-    AppProvider provider,
-    int index,
-  ) async {
+  void _editBottleTime(BuildContext context, AppProvider provider, int index) async {
     TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: provider.entries[index].bottleTime != null
@@ -535,35 +568,19 @@ class MainScreen extends StatelessWidget {
           : TimeOfDay.now(),
       builder: (context, child) {
         return MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(alwaysUse24HourFormat: provider.is24Hour),
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: provider.is24Hour),
           child: child ?? const SizedBox.shrink(),
         );
       },
     );
     if (pickedTime != null && context.mounted) {
-      final baseDate =
-          provider.entries[index].slept ??
-          provider.entries[index].wokeUp ??
-          DateTime.now();
-      final newTime = DateTime(
-        baseDate.year,
-        baseDate.month,
-        baseDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
-      );
+      final baseDate = provider.entries[index].slept ?? provider.entries[index].wokeUp ?? DateTime.now();
+      final newTime = DateTime(baseDate.year, baseDate.month, baseDate.day, pickedTime.hour, pickedTime.minute);
       provider.editBottleTime(index, newTime);
     }
   }
 
-  void _deleteEntryConfirm(
-    BuildContext context,
-    AppProvider provider,
-    LocalizedStrings strings,
-    int index,
-  ) {
+  void _deleteEntryConfirm(BuildContext context, AppProvider provider, LocalizedStrings strings, int index) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -667,41 +684,21 @@ class MainScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       scrollDirection: Axis.horizontal,
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: MediaQuery.of(context).size.width - 32,
-        ),
+        constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 32),
         child: Card(
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isDay
-                      ? const Color(0xFFDCEAFF)
-                      : const Color(0xFF2B1D40),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(18),
-                  ),
+                  color: isDay ? const Color(0xFFDCEAFF) : const Color(0xFF2B1D40),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                 ),
                 child: Row(
                   children: [
-                    _buildTableHeaderCell(
-                      strings.dormiu,
-                      flex: 2,
-                      textColor: textColor,
-                    ),
-                    _buildTableHeaderCell(
-                      strings.acordou,
-                      flex: 2,
-                      textColor: textColor,
-                    ),
-                    _buildTableHeaderCell(
-                      strings.diaNoite,
-                      textColor: textColor,
-                    ),
+                    _buildTableHeaderCell(strings.dormiu, flex: 2, textColor: textColor),
+                    _buildTableHeaderCell(strings.acordou, flex: 2, textColor: textColor),
+                    _buildTableHeaderCell(strings.diaNoite, textColor: textColor),
                     _buildTableHeaderCell(strings.mamou, textColor: textColor),
                     _buildTableHeaderCell(
                       strings.tempoDoricido,
@@ -718,14 +715,9 @@ class MainScreen extends StatelessWidget {
               ),
               for (int index = 0; index < provider.entries.length; index++)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   color: index.isEven
-                      ? (isDay
-                            ? const Color(0xFFF9FBFF)
-                            : const Color(0xFF1E152B))
+                      ? (isDay ? const Color(0xFFF9FBFF) : const Color(0xFF1E152B))
                       : Colors.transparent,
                   child: Row(
                     children: [
@@ -776,8 +768,7 @@ class MainScreen extends StatelessWidget {
                       Expanded(
                         child: Center(
                           child: GestureDetector(
-                            onLongPress: () =>
-                                _editBottleTime(context, provider, index),
+                            onLongPress: () => _editBottleTime(context, provider, index),
                             child: ActionChip(
                               visualDensity: VisualDensity.compact,
                               backgroundColor: isDay
@@ -787,27 +778,15 @@ class MainScreen extends StatelessWidget {
                                 'assets/icons/bottle.svg',
                                 width: 16,
                                 height: 16,
-                                colorFilter: isDay
-                                    ? const ColorFilter.mode(
-                                        Colors.black,
-                                        BlendMode.srcIn,
-                                      )
-                                    : null,
+                                colorFilter: isDay ? const ColorFilter.mode(Colors.black, BlendMode.srcIn) : null,
                               ),
                               label: Text(
                                 provider.entries[index].bottle
-                                    ? (provider.entries[index].bottleTime !=
-                                              null
-                                          ? '${strings.mamou} ${provider.entries[index].getFormattedBottleTime(provider.locale, provider.is24Hour)}'
-                                          : strings.mamou)
+                                    ? (provider.entries[index].bottleTime != null ? '${strings.mamou} ${provider.entries[index].getFormattedBottleTime(provider.locale, provider.is24Hour)}' : strings.mamou)
                                     : strings.didNotFeed,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 12,
-                                ),
+                                style: TextStyle(color: textColor, fontSize: 12),
                               ),
-                              onPressed: () =>
-                                  provider.updateSelectedBottle(index),
+                              onPressed: () => provider.updateSelectedBottle(index),
                             ),
                           ),
                         ),
@@ -926,143 +905,126 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ai = provider.aiSuggestion;
     final bgColor = isDay ? Colors.white : const Color(0xFF1D1130);
 
-    return AnimatedBuilder(
-      animation: provider,
-      builder: (context, child) {
-        final ai = provider.aiSuggestion;
-        return Container(
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-          child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
               children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                const Icon(Icons.auto_awesome, color: Color(0xFF9A7CFF), size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  _t('Sugestões IA', 'AI Suggestions'),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.auto_awesome,
-                      color: Color(0xFF9A7CFF),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _t('Sugestões IA', 'AI Suggestions'),
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: () {
-                        provider.refreshAiSuggestions();
-                      },
-                      icon: const Icon(
-                        Icons.refresh,
-                        size: 16,
-                        color: Color(0xFF9A7CFF),
-                      ),
-                      label: Text(
-                        _t('Atualizar', 'Refresh'),
-                        style: const TextStyle(
-                          color: Color(0xFF9A7CFF),
-                          fontSize: 13,
-                        ),
-                      ),
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    ),
-                  ],
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    provider.refreshAiSuggestions();
+                  },
+                  icon: const Icon(Icons.refresh, size: 16, color: Color(0xFF9A7CFF)),
+                  label: Text(
+                    _t('Atualizar', 'Refresh'),
+                    style: const TextStyle(color: Color(0xFF9A7CFF), fontSize: 13),
+                  ),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero),
                 ),
-                const SizedBox(height: 20),
-                if (ai == null || ai.isLoading)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          const CircularProgressIndicator(
-                            color: Color(0xFF9A7CFF),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _t(
-                              'Analisando dados de sono…',
-                              'Analyzing sleep data…',
-                            ),
-                            style: TextStyle(color: subtitleColor),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else if (ai.error != null)
-                  Text(
-                    _t(
-                      'Não foi possível gerar sugestões.',
-                      'Could not generate suggestions.',
-                    ),
-                    style: const TextStyle(color: Color(0xFFE57373)),
-                  )
-                else ...[
-                  if (ai.nextNapTime != null)
-                    _SuggestionTile(
-                      icon: Icons.bedtime_outlined,
-                      title: _t('Próxima soneca', 'Next nap'),
-                      time: ai.nextNapTime!,
-                      rationale: ai.nextNapRationale,
-                      textColor: textColor,
-                      subtitleColor: subtitleColor,
-                      isDay: isDay,
-                    ),
-                  if (ai.bedtimeRoutineStart != null) ...[
-                    if (ai.nextNapTime != null) const SizedBox(height: 12),
-                    _SuggestionTile(
-                      icon: Icons.nights_stay_outlined,
-                      title: _t(
-                        'Iniciar rotina noturna',
-                        'Start night routine',
-                      ),
-                      time: ai.bedtimeRoutineStart!,
-                      rationale: ai.bedtimeRationale,
-                      textColor: textColor,
-                      subtitleColor: subtitleColor,
-                      isDay: isDay,
-                    ),
-                  ],
-                  if (ai.generatedAt != null) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      _t(
-                        'Gerado às ${_fmtTime(ai.generatedAt!)}',
-                        'Generated at ${_fmtTime(ai.generatedAt!)}',
-                      ),
-                      style: TextStyle(color: subtitleColor, fontSize: 11),
-                    ),
-                  ],
-                ],
               ],
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 20),
+            if (ai == null || ai.isLoading)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const CircularProgressIndicator(color: Color(0xFF9A7CFF)),
+                      const SizedBox(height: 12),
+                      Text(
+                        _t('Analisando dados de sono…', 'Analyzing sleep data…'),
+                        style: TextStyle(color: subtitleColor),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (ai.error != null)
+              Text(
+                _t('Não foi possível gerar sugestões.', 'Could not generate suggestions.'),
+                style: const TextStyle(color: Color(0xFFE57373)),
+              )
+            else ...[
+              if (ai.nextNapTime != null)
+                _SuggestionTile(
+                  icon: Icons.bedtime_outlined,
+                  title: _t('Próxima soneca', 'Next nap'),
+                  time: ai.nextNapTime!,
+                  rationale: ai.nextNapRationale,
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                ),
+              if (ai.bedtimeRoutineStart != null) ...[
+                if (ai.nextNapTime != null) const SizedBox(height: 12),
+                _SuggestionTile(
+                  icon: Icons.nights_stay_outlined,
+                  title: _t('Iniciar rotina noturna', 'Start night routine'),
+                  time: ai.bedtimeRoutineStart!,
+                  rationale: ai.bedtimeRationale,
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                ),
+              ],
+              if (ai.nightWakeTime != null) ...[
+                if (ai.nextNapTime != null || ai.bedtimeRoutineStart != null)
+                  const SizedBox(height: 12),
+                _SuggestionTile(
+                  icon: Icons.wb_sunny_outlined,
+                  title: _t('Previsão de acordar', 'Wake-up forecast'),
+                  time: ai.nightWakeTime!,
+                  rationale: ai.nightWakeRationale,
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                ),
+              ],
+              if (ai.generatedAt != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _t(
+                    'Gerado às ${_fmtTime(ai.generatedAt!)}',
+                    'Generated at ${_fmtTime(ai.generatedAt!)}',
+                  ),
+                  style: TextStyle(color: subtitleColor, fontSize: 11),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1077,7 +1039,6 @@ class _SuggestionTile extends StatelessWidget {
   final String? rationale;
   final Color textColor;
   final Color subtitleColor;
-  final bool isDay;
 
   const _SuggestionTile({
     required this.icon,
@@ -1086,7 +1047,6 @@ class _SuggestionTile extends StatelessWidget {
     this.rationale,
     required this.textColor,
     required this.subtitleColor,
-    required this.isDay,
   });
 
   @override
@@ -1094,11 +1054,9 @@ class _SuggestionTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDay ? const Color(0xFFF8F9FF) : const Color(0xFF1A1030),
+        color: const Color(0xFF1A1030),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDay ? const Color(0xFFE8ECF4) : const Color(0xFF2A1B3E),
-        ),
+        border: Border.all(color: const Color(0xFF2A1B3E)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1106,7 +1064,7 @@ class _SuggestionTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDay ? const Color(0xFFE8ECF4) : const Color(0xFF2A1B3E),
+              color: const Color(0xFF2A1B3E),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: const Color(0xFF9A7CFF), size: 22),
@@ -1116,19 +1074,16 @@ class _SuggestionTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: subtitleColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(title,
+                    style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(
                   time,
-                  style: TextStyle(
-                    color: textColor,
+                  style: const TextStyle(
+                    color: Color(0xFFEADFFF),
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1137,11 +1092,7 @@ class _SuggestionTile extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     rationale!,
-                    style: TextStyle(
-                      color: subtitleColor,
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
+                    style: TextStyle(color: subtitleColor, fontSize: 12, height: 1.4),
                   ),
                 ],
               ],

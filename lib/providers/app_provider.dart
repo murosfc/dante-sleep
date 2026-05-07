@@ -11,10 +11,10 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../knowledge/sleep_knowledge_base.dart';
 import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
-import '../models/sleep_window_prediction.dart';
 import '../models/sync_queue_item.dart';
 import '../services/firebase_service.dart';
 import '../services/gemini_service.dart';
@@ -34,12 +34,11 @@ class AppProvider with ChangeNotifier {
   String? get loadedUserId => _loadedUserId;
   bool get isLoadingAuthUserData => _isLoadingAuthUserData;
   AiSuggestion? aiSuggestion;
-  List<SleepWindowPrediction>? sleepWindowPredictions;
-  DateTime? _lastSleepWindowUpdate;
   int get aiUnreadCount {
     if (aiSuggestion == null || !aiSuggestion!.hasContent) return 0;
     return (aiSuggestion!.nextNapTime != null ? 1 : 0) +
-        (aiSuggestion!.bedtimeRoutineStart != null ? 1 : 0);
+      (aiSuggestion!.bedtimeRoutineStart != null ? 1 : 0) +
+      (aiSuggestion!.nightWakeTime != null ? 1 : 0);
   }
   bool _aiSuggestionsRead = false;
   String get nvidiaApiKeyFromEnv {
@@ -56,7 +55,7 @@ class AppProvider with ChangeNotifier {
         ? dotenv.env['NVIDIA_MODEL']
         : dotenv.env['GEMINI_MODEL'])
         ?.trim();
-    return value != null && value.isEmpty ? null : value;
+    return value.isEmpty ? null : value;
   }
   bool get hasNvidiaApiKeyConfigured => nvidiaApiKeyFromEnv.isNotEmpty;
   bool get hasPendingAiNotifications =>
@@ -188,12 +187,6 @@ class AppProvider with ChangeNotifier {
         locale = _localeFromStoredLanguage(lang);
       }
 
-      // Update isDay based on current time if theme mode is auto
-      if (visualThemeMode == 'auto') {
-        final now = DateTime.now();
-        isDay = now.hour >= 6 && now.hour < 18;
-      }
-
       // 1.1 User profile
       final userProfile = await FirebaseService().getUserProfile(user.uid);
       userDisplayName = (userProfile['displayName'] as String?)?.trim();
@@ -247,7 +240,6 @@ class AppProvider with ChangeNotifier {
       // 5. Refresh AI suggestions if API key is configured
       if (hasNvidiaApiKeyConfigured && babyProfile != null) {
         refreshAiSuggestions();
-        refreshSleepWindowPredictions(force: true);
       }
     } catch (e) {
       debugPrint('Error loading settings from current user: $e');
@@ -293,17 +285,36 @@ class AppProvider with ChangeNotifier {
       preferredModel: nvidiaModelFromEnv,
     );
 
+    final isNightMode = _isNightContext();
+    final nightForecast = _calculateNightWakeForecast(profile, isPt: locale.languageCode == 'pt');
+
     aiSuggestion = result;
+    if (isNightMode) {
+      aiSuggestion = AiSuggestion(
+        nextNapTime: null,
+        nextNapRationale: null,
+        bedtimeRoutineStart: null,
+        bedtimeRationale: null,
+        nightWakeTime: nightForecast.time,
+        nightWakeRationale: nightForecast.rationale,
+        generatedAt: result?.generatedAt ?? DateTime.now(),
+        error: result?.error,
+      );
+    } else {
+      aiSuggestion = _removeMorningBridgeNap(aiSuggestion);
+    }
     notifyListeners();
 
     // Schedule local notifications for the suggested times
-    if (result != null && result.error == null) {
+    if (aiSuggestion != null && aiSuggestion!.error == null) {
       try {
         await NotificationService.scheduleAiSuggestions(
-          napTime: result.nextNapTime,
-          napRationale: result.nextNapRationale,
-          routineStart: result.bedtimeRoutineStart,
-          routineRationale: result.bedtimeRationale,
+          napTime: aiSuggestion!.nextNapTime,
+          napRationale: aiSuggestion!.nextNapRationale,
+          routineStart: aiSuggestion!.bedtimeRoutineStart,
+          routineRationale: aiSuggestion!.bedtimeRationale,
+          nightWakeTime: aiSuggestion!.nightWakeTime,
+          nightWakeRationale: aiSuggestion!.nightWakeRationale,
           isPt: locale.languageCode == 'pt',
           userName: userDisplayName,
           babyName: profile.name,
@@ -315,43 +326,107 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  Future<void> refreshSleepWindowPredictions({bool force = false}) async {
-    final profile = babyProfile;
-    final apiKey = nvidiaApiKeyFromEnv;
-    if (apiKey.isEmpty || profile == null || entries.length < 3) {
-      sleepWindowPredictions = null;
-      _lastSleepWindowUpdate = null;
-      notifyListeners();
-      return;
-    }
+  bool _isNightContext() {
+    if (!isDay) return true;
+    if (entries.isEmpty) return false;
+    return entries.first.isDay == false;
+  }
 
-    // Only update once per day in the morning unless forced
-    final now = DateTime.now();
-    if (!force && _lastSleepWindowUpdate != null &&
-        now.difference(_lastSleepWindowUpdate!).inHours < 18) {
-      if (sleepWindowPredictions == null) {
-        sleepWindowPredictions = [];
-        notifyListeners();
-      }
-      return;
-    }
+  AiSuggestion? _removeMorningBridgeNap(AiSuggestion? suggestion) {
+    if (suggestion == null) return null;
+    final isMorning = DateTime.now().hour < 12;
+    if (!isMorning) return suggestion;
 
-    sleepWindowPredictions = null; // Clear while loading
-    notifyListeners();
+    final rationale = (suggestion.nextNapRationale ?? '').toLowerCase();
+    final mentionsBridge =
+        rationale.contains('ponte') || rationale.contains('bridge');
+    if (!mentionsBridge) return suggestion;
 
-    final result = await GeminiService.getSleepWindowPredictions(
-      apiKey: apiKey,
-      profile: profile,
-      entries: entries,
-      languageCode: locale.languageCode,
-      preferredModel: nvidiaModelFromEnv,
+    return AiSuggestion(
+      nextNapTime: null,
+      nextNapRationale: null,
+      bedtimeRoutineStart: suggestion.bedtimeRoutineStart,
+      bedtimeRationale: suggestion.bedtimeRationale,
+      nightWakeTime: suggestion.nightWakeTime,
+      nightWakeRationale: suggestion.nightWakeRationale,
+      generatedAt: suggestion.generatedAt,
+      isLoading: suggestion.isLoading,
+      error: suggestion.error,
     );
+  }
 
-    sleepWindowPredictions = result ?? [];
-    if (result != null) {
-      _lastSleepWindowUpdate = now;
+  ({String time, String rationale}) _calculateNightWakeForecast(
+    BabyProfile profile, {
+    required bool isPt,
+  }) {
+    final firstNightSleep = _findCurrentNightStart();
+    if (firstNightSleep == null) {
+      final fallback = _fallbackNightDuration(profile);
+      final wake = DateTime.now().add(fallback);
+      return (
+        time: _formatHm(wake),
+        rationale: isPt
+            ? 'Previsão baseada na duração noturna esperada para a idade (${fallback.inHours}h).'
+            : 'Forecast based on expected night sleep duration for age (${fallback.inHours}h).',
+      );
     }
-    notifyListeners();
+
+    final avgDuration = _averageCompletedNightDuration();
+    final baseline = avgDuration ?? _fallbackNightDuration(profile);
+    final wake = firstNightSleep.add(baseline);
+
+    final sourceText = avgDuration != null
+        ? (isPt ? 'média das noites anteriores' : 'average of previous nights')
+        : (isPt ? 'referência por idade' : 'age fallback');
+
+    return (
+      time: _formatHm(wake),
+      rationale: isPt
+          ? 'Previsão de acordar às ${_formatHm(wake)} usando $sourceText.'
+          : 'Forecast wake-up at ${_formatHm(wake)} using $sourceText.',
+    );
+  }
+
+  DateTime? _findCurrentNightStart() {
+    for (final entry in entries) {
+      if (!entry.isDay && entry.slept != null) {
+        return entry.slept;
+      }
+      if (entry.isDay) {
+        break;
+      }
+    }
+    return null;
+  }
+
+  Duration? _averageCompletedNightDuration() {
+    final durations = <Duration>[];
+    for (final entry in entries) {
+      if (!entry.isDay && entry.slept != null && entry.wokeUp != null) {
+        final diff = entry.wokeUp!.difference(entry.slept!);
+        if (!diff.isNegative) {
+          durations.add(diff);
+        }
+      }
+      if (durations.length >= 14) break;
+    }
+
+    if (durations.isEmpty) return null;
+    final totalMinutes = durations.fold<int>(
+      0,
+      (sum, d) => sum + d.inMinutes,
+    );
+    return Duration(minutes: (totalMinutes / durations.length).round());
+  }
+
+  Duration _fallbackNightDuration(BabyProfile profile) {
+    final range = SleepKnowledgeBase.getRecommendedNightSleepHours(profile.birthdate);
+    final avgHours = (range.minHours + range.maxHours) / 2;
+    return Duration(minutes: (avgHours * 60).round());
+  }
+
+  String _formatHm(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   void clearUserData() {
@@ -382,10 +457,6 @@ class AppProvider with ChangeNotifier {
   void setVisualThemeMode(String mode) {
     if (mode != 'auto' && mode != 'day' && mode != 'night') return;
     visualThemeMode = mode;
-    if (mode == 'auto') {
-      final now = DateTime.now();
-      isDay = now.hour >= 6 && now.hour < 18;
-    }
     notifyListeners();
     saveData();
     _syncSettingsToFirestore();
@@ -420,7 +491,6 @@ class AppProvider with ChangeNotifier {
     _syncToFirestore();
     // Refresh AI suggestions after every sleep event
     refreshAiSuggestions();
-    refreshSleepWindowPredictions(force: true);
   }
 
   void toggleBottle() {

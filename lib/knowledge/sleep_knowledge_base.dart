@@ -3,6 +3,27 @@
 class SleepKnowledgeBase {
   SleepKnowledgeBase._();
 
+  /// Returns a reasonable fallback range for total night sleep by age.
+  /// Values are conservative and aligned with the ranges described below.
+  static ({double minHours, double maxHours}) getRecommendedNightSleepHours(
+    DateTime? birthdate,
+  ) {
+    if (birthdate == null) {
+      return (minHours: 9.0, maxHours: 11.0);
+    }
+
+    final weeks = DateTime.now().difference(birthdate).inDays ~/ 7;
+    if (weeks < 6) return (minHours: 8.0, maxHours: 10.0);
+    if (weeks < 12) return (minHours: 8.5, maxHours: 10.5);
+    if (weeks < 20) return (minHours: 9.0, maxHours: 11.0);
+    if (weeks < 28) return (minHours: 9.5, maxHours: 11.5);
+    if (weeks < 40) return (minHours: 10.0, maxHours: 12.0);
+    if (weeks < 52) return (minHours: 10.0, maxHours: 12.0);
+    if (weeks < 70) return (minHours: 10.0, maxHours: 12.0);
+    if (weeks < 104) return (minHours: 10.0, maxHours: 12.0);
+    return (minHours: 10.0, maxHours: 11.5);
+  }
+
   static String getContext(DateTime? birthdate, {bool isPt = true}) {
     String context;
     if (birthdate == null) {
