@@ -944,7 +944,6 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () {
-                    Navigator.pop(context);
                     provider.refreshAiSuggestions();
                   },
                   icon: const Icon(Icons.refresh, size: 16, color: Color(0xFF9A7CFF)),
@@ -979,29 +978,7 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
                 style: const TextStyle(color: Color(0xFFE57373)),
               )
             else ...[
-              if (ai.nextNapTime != null)
-                _SuggestionTile(
-                  icon: Icons.bedtime_outlined,
-                  title: _t('Próxima soneca', 'Next nap'),
-                  time: ai.nextNapTime!,
-                  rationale: ai.nextNapRationale,
-                  textColor: textColor,
-                  subtitleColor: subtitleColor,
-                ),
-              if (ai.bedtimeRoutineStart != null) ...[
-                if (ai.nextNapTime != null) const SizedBox(height: 12),
-                _SuggestionTile(
-                  icon: Icons.nights_stay_outlined,
-                  title: _t('Iniciar rotina noturna', 'Start night routine'),
-                  time: ai.bedtimeRoutineStart!,
-                  rationale: ai.bedtimeRationale,
-                  textColor: textColor,
-                  subtitleColor: subtitleColor,
-                ),
-              ],
-              if (ai.nightWakeTime != null) ...[
-                if (ai.nextNapTime != null || ai.bedtimeRoutineStart != null)
-                  const SizedBox(height: 12),
+              if (ai.nightWakeTime != null)
                 _SuggestionTile(
                   icon: Icons.wb_sunny_outlined,
                   title: _t('Previsão de acordar', 'Wake-up forecast'),
@@ -1009,6 +986,31 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
                   rationale: ai.nightWakeRationale,
                   textColor: textColor,
                   subtitleColor: subtitleColor,
+                  isDay: isDay,
+                ),
+              if (ai.nextNapTime != null) ...[
+                if (ai.nightWakeTime != null) const SizedBox(height: 12),
+                _SuggestionTile(
+                  icon: Icons.bedtime_outlined,
+                  title: _t('Próxima soneca', 'Next nap'),
+                  time: ai.nextNapTime!,
+                  rationale: ai.nextNapRationale,
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                  isDay: isDay,
+                ),
+              ],
+              if (ai.bedtimeRoutineStart != null) ...[
+                if (ai.nightWakeTime != null || ai.nextNapTime != null)
+                  const SizedBox(height: 12),
+                _SuggestionTile(
+                  icon: Icons.nights_stay_outlined,
+                  title: _t('Iniciar rotina noturna', 'Start night routine'),
+                  time: ai.bedtimeRoutineStart!,
+                  rationale: ai.bedtimeRationale,
+                  textColor: textColor,
+                  subtitleColor: subtitleColor,
+                  isDay: isDay,
                 ),
               ],
               if (ai.generatedAt != null) ...[
@@ -1039,6 +1041,7 @@ class _SuggestionTile extends StatelessWidget {
   final String? rationale;
   final Color textColor;
   final Color subtitleColor;
+  final bool isDay;
 
   const _SuggestionTile({
     required this.icon,
@@ -1047,16 +1050,22 @@ class _SuggestionTile extends StatelessWidget {
     this.rationale,
     required this.textColor,
     required this.subtitleColor,
+    required this.isDay,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = isDay ? const Color(0xFFF6FAFF) : const Color(0xFF1A1030);
+    final borderColor = isDay ? const Color(0xFFDCEAFF) : const Color(0xFF2A1B3E);
+    final iconBgColor = isDay ? const Color(0xFFDCEAFF) : const Color(0xFF2A1B3E);
+    final iconColor = isDay ? const Color(0xFF2A6CE8) : const Color(0xFF9A7CFF);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1030),
+        color: bgColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2A1B3E)),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1064,10 +1073,10 @@ class _SuggestionTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF2A1B3E),
+              color: iconBgColor,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFF9A7CFF), size: 22),
+            child: Icon(icon, color: iconColor, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1082,8 +1091,8 @@ class _SuggestionTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   time,
-                  style: const TextStyle(
-                    color: Color(0xFFEADFFF),
+                  style: TextStyle(
+                    color: textColor,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),

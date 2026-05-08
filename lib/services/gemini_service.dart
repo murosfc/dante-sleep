@@ -25,7 +25,13 @@ class NvidiaService {
     String? preferredModel,
   }) async {
     if (apiKey.trim().isEmpty) return null;
-
+    if (entries.isEmpty) {
+      return AiSuggestion(
+        error: languageCode == 'pt'
+            ? 'Não há dados suficientes para gerar sugestões. Adicione registros de sono primeiro.'
+            : 'Not enough data to generate suggestions. Please add sleep records first.',
+      );
+    }
     final modelsToTry = <String>[
       if (preferredModel != null && preferredModel.trim().isNotEmpty)
         preferredModel.trim(),
@@ -169,6 +175,15 @@ class NvidiaService {
     final routineMin = profile.nightRoutineMinutes;
     final history = _formatHistory(entries, isPt: isPt);
     final currentContext = _currentSleepContext(entries, isPt: isPt);
+    final parts = targetBed.split(':');
+    final bedHour = int.tryParse(parts[0]) ?? 19;
+    final bedMin = int.tryParse(parts.length > 1 ? parts[1] : '30') ?? 30;
+    final totalBedMin = bedHour * 60 + bedMin;
+    final startRoutineMin = totalBedMin - routineMin;
+    final startHour = (startRoutineMin ~/ 60) % 24;
+    final startMin = startRoutineMin % 60;
+    final routineStartExact = '${startHour.toString().padLeft(2, '0')}:${startMin.toString().padLeft(2, '0')}';
+
     final now = DateTime.now();
     final nowStr =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
@@ -195,17 +210,18 @@ CONTEXTO ATUAL:
 $currentContext
 
 Determine:
-1. Se for período DIURNO: horário ideal da PRÓXIMA SONECA (use janela de vigília/tempo acordado desde o último acordar)
-2. Se for fim da tarde e faltar no máximo 90 min para a rotina noturna: você PODE sugerir soneca ponte curta
-3. Soneca ponte NUNCA deve ser sugerida de manhã
-4. Horário para INICIAR A ROTINA NOTURNA (considere $routineMin min de rotina para dormir às $targetBed), somente quando fizer sentido no período diurno
+1. Se o bebê ESTIVER DORMINDO AGORA: calcule a hora que ele deve ACORDAR. Analise o histórico recente para descobrir a duração média das sonecas/sonos NESSE MESMO HORÁRIO. Use a base de conhecimento apenas como fallback caso não haja dados suficientes no histórico.
+2. Se o bebê estiver ACORDADO e for período diurno: horário ideal da PRÓXIMA SONECA (use a janela de vigília apropriada). Sugira o intervalo correspondente (ex: HH:mm - HH:mm).
+3. Se for fim da tarde e faltar no máximo 90 min para a rotina noturna: você PODE sugerir soneca ponte curta.
+4. Soneca ponte NUNCA deve ser sugerida de manhã.
+5. Horário para INICIAR A ROTINA NOTURNA: A rotina dura $routineMin minutos e o objetivo é dormir às $targetBed, então a rotina DEVE começar exatamente às $routineStartExact. Sugira esse horário exato ($routineStartExact) caso estejamos no período diurno/tarde e faça sentido para o próximo sono.
 
 IMPORTANTE DE IDIOMA:
 - Responda em português do Brasil
 - Não use termos em inglês como "wake time" ou "wake window"; use "tempo acordado" ou "janela de vigília"
 
-RESPONDA APENAS com JSON válido, sem texto adicional:
-{"nextNapTime":"HH:mm|null","nextNapRationale":"1 frase explicando","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 frase explicando"}''';
+RESPONDA ESTRITAMENTE com JSON válido. NÃO escreva nenhum raciocínio, não explique os passos, e não adicione texto de introdução ou conclusão. O formato exato (iniciando e terminando com chaves) DEVE ser:
+{"wakeUpTime":"HH:mm|null","wakeUpRationale":"1 frase explicando","nextNapTime":"HH:mm - HH:mm|null","nextNapRationale":"1 frase explicando","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 frase explicando"}''';
     } else {
       return '''You are an evidence-based pediatric sleep expert. Provide precise, practical suggestions.
 
@@ -228,13 +244,14 @@ CURRENT CONTEXT:
 $currentContext
 
 Determine:
-1. If it's DAYTIME: ideal time for the NEXT NAP (use age-appropriate wake window since last wake-up)
-2. A bridge nap is allowed only near bedtime (up to 90 minutes before the bedtime routine)
-3. Never suggest a bridge nap in the morning
-4. Time to START THE NIGHT ROUTINE ($routineMin min routine to sleep at $targetBed), only when it is applicable during daytime
+1. If the baby IS CURRENTLY SLEEPING: calculate the expected WAKE UP time. Analyze the recent history to find the average duration of sleep/naps AT THIS SAME TIME. Use the knowledge base only as a fallback if there is not enough historical data.
+2. If the baby is AWAKE and it's DAYTIME: ideal time for the NEXT NAP (use age-appropriate wake window). Suggest the range (e.g., HH:mm - HH:mm).
+3. A bridge nap is allowed only near bedtime (up to 90 minutes before the bedtime routine).
+4. Never suggest a bridge nap in the morning.
+5. Time to START THE NIGHT ROUTINE: The routine takes $routineMin minutes and the goal is to sleep at $targetBed, so the routine MUST start exactly at $routineStartExact. Suggest this exact time ($routineStartExact) if it is daytime/afternoon and makes sense for the next sleep block.
 
-RESPOND ONLY with valid JSON, no additional text:
-{"nextNapTime":"HH:mm|null","nextNapRationale":"1 sentence explanation","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 sentence explanation"}''';
+RESPOND STRICTLY with valid JSON. DO NOT write any reasoning, do not explain your steps, and do not add any introductory or concluding text. The exact format (starting and ending with curly braces) MUST be:
+{"wakeUpTime":"HH:mm|null","wakeUpRationale":"1 sentence explanation","nextNapTime":"HH:mm - HH:mm|null","nextNapRationale":"1 sentence explanation","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 sentence explanation"}''';
     }
   }
 
@@ -252,9 +269,18 @@ RESPOND ONLY with valid JSON, no additional text:
         ? (isPt ? 'sim' : 'yes')
         : (isPt ? 'não' : 'no');
 
-    return isPt
+    String context = isPt
         ? 'Último período registrado: $latestPeriod. Dormindo agora: $sleepingText.'
         : 'Last recorded period: $latestPeriod. Currently sleeping: $sleepingText.';
+
+    if (!currentlySleeping && latest.wokeUp != null) {
+      final wakeStr = _fmt(latest.wokeUp!);
+      context += isPt
+          ? '\nATENÇÃO: O bebê está acordado. O último despertar (hora em que acordou) foi às $wakeStr. Calcule a próxima soneca a partir de $wakeStr.'
+          : '\nATTENTION: The baby is awake. The last wake-up time was at $wakeStr. Calculate the next nap starting from $wakeStr.';
+    }
+
+    return context;
   }
 
   static String _formatHistory(List<SleepEntry> entries, {required bool isPt}) {
@@ -287,51 +313,53 @@ RESPOND ONLY with valid JSON, no additional text:
   static AiSuggestion _parseResponse(String raw, {required bool isPt}) {
     String cleaned = raw.trim();
     // Strip markdown code fences
-    cleaned = cleaned.replaceAll(RegExp(r'```[a-z]*\n?'), '').trim();
+    cleaned = cleaned.replaceAll(RegExp(r'```[a-zA-Z]*\n?'), '').trim();
 
     final jsonStart = cleaned.indexOf('{');
     final jsonEnd = cleaned.lastIndexOf('}');
-    if (jsonStart == -1 || jsonEnd <= jsonStart) {
-      return const AiSuggestion(error: 'Could not parse AI response');
-    }
-
-    try {
-      final map = jsonDecode(cleaned.substring(jsonStart, jsonEnd + 1))
-          as Map<String, dynamic>;
-      final nextNapRationale = _normalizeRationale(
-        map['nextNapRationale'] as String?,
-        isPt: isPt,
-      );
-      final bedtimeRationale = _normalizeRationale(
-        map['bedtimeRationale'] as String?,
-        isPt: isPt,
-      );
-      final nightWakeRationale = _normalizeRationale(
-        map['nightWakeRationale'] as String?,
-        isPt: isPt,
-      );
-      return AiSuggestion(
-        nextNapTime: _normalizeTime(map['nextNapTime'] as String?),
-        nextNapRationale: nextNapRationale,
-        bedtimeRoutineStart: _normalizeTime(map['bedtimeRoutineStart'] as String?),
-        bedtimeRationale: bedtimeRationale,
-        nightWakeTime: _normalizeTime(map['nightWakeTime'] as String?),
-        nightWakeRationale: nightWakeRationale,
-        generatedAt: DateTime.now(),
-      );
-    } catch (e) {
-      debugPrint('AI parse error (jsonDecode): $e');
-      debugPrint('AI raw response: $raw');
-      debugPrint('AI cleaned response: $cleaned');
-
-      final fallback = _parseLooseJsonLike(cleaned, isPt: isPt);
-      if (fallback != null) {
-        debugPrint('AI parse recovered via loose parser');
-        return fallback;
+    
+    if (jsonStart != -1 && jsonEnd > jsonStart) {
+      try {
+        final map = jsonDecode(cleaned.substring(jsonStart, jsonEnd + 1))
+            as Map<String, dynamic>;
+        final nextNapRationale = _normalizeRationale(
+          map['nextNapRationale'] as String?,
+          isPt: isPt,
+        );
+        final bedtimeRationale = _normalizeRationale(
+          map['bedtimeRationale'] as String?,
+          isPt: isPt,
+        );
+        final nightWakeRationale = _normalizeRationale(
+          (map['wakeUpRationale'] as String?) ?? (map['nightWakeRationale'] as String?),
+          isPt: isPt,
+        );
+        return AiSuggestion(
+          nextNapTime: _normalizeTime(map['nextNapTime'] as String?),
+          nextNapRationale: nextNapRationale,
+          bedtimeRoutineStart: _normalizeTime(map['bedtimeRoutineStart'] as String?),
+          bedtimeRationale: bedtimeRationale,
+          nightWakeTime: _normalizeTime((map['wakeUpTime'] as String?) ?? (map['nightWakeTime'] as String?)),
+          nightWakeRationale: nightWakeRationale,
+          generatedAt: DateTime.now(),
+        );
+      } catch (e) {
+        debugPrint('AI parse error (jsonDecode): $e');
+        debugPrint('AI cleaned response: $cleaned');
       }
-
-      return const AiSuggestion(error: 'Could not parse AI response');
+    } else {
+      debugPrint('AI parse error: No valid braces found. Start: $jsonStart, End: $jsonEnd');
+      debugPrint('AI raw response: $raw');
     }
+
+    final fallback = _parseLooseJsonLike(cleaned, isPt: isPt);
+    if (fallback != null) {
+      debugPrint('AI parse recovered via loose parser');
+      return fallback;
+    }
+
+    debugPrint('AI parse failed completely. Raw: $raw');
+    return const AiSuggestion(error: 'Could not parse AI response');
   }
 
   static AiSuggestion? _parseLooseJsonLike(String text, {required bool isPt}) {
@@ -356,9 +384,9 @@ RESPOND ONLY with valid JSON, no additional text:
       pick('bedtimeRationale'),
       isPt: isPt,
     );
-    final nightWakeTime = _normalizeTime(pick('nightWakeTime'));
+    final nightWakeTime = _normalizeTime(pick('wakeUpTime') ?? pick('nightWakeTime'));
     final nightWakeRationale = _normalizeRationale(
-      pick('nightWakeRationale'),
+      pick('wakeUpRationale') ?? pick('nightWakeRationale'),
       isPt: isPt,
     );
 
