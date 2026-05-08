@@ -6,7 +6,6 @@ import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -40,51 +39,22 @@ class AppProvider with ChangeNotifier {
   int get aiUnreadCount {
     if (aiSuggestion == null || !aiSuggestion!.hasContent) return 0;
     return (aiSuggestion!.nextNapTime != null ? 1 : 0) +
-      (aiSuggestion!.bedtimeRoutineStart != null ? 1 : 0) +
-      (aiSuggestion!.nightWakeTime != null ? 1 : 0);
+        (aiSuggestion!.bedtimeRoutineStart != null ? 1 : 0) +
+        (aiSuggestion!.nightWakeTime != null ? 1 : 0);
   }
+
   bool _aiSuggestionsRead = false;
   String get nvidiaApiKeyFromEnv {
     final primary = (dotenv.env['NVIDIA_API_KEY'] ?? '').trim();
     if (primary.isNotEmpty) return primary;
-    const definePrimary = String.fromEnvironment('NVIDIA_API_KEY');
-    if (definePrimary.isNotEmpty) return definePrimary;
-
-    // Legacy alias kept for older local env files.
-    final legacy = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
-    if (legacy.isNotEmpty) {
-      debugPrint(
-        'AI config: using legacy GEMINI_API_KEY as fallback for NVIDIA.',
-      );
-      return legacy;
-    }
-
-    const defineLegacy = String.fromEnvironment('GEMINI_API_KEY');
-    if (defineLegacy.isNotEmpty) {
-      debugPrint(
-        'AI config: using legacy --dart-define=GEMINI_API_KEY as fallback for NVIDIA.',
-      );
-    }
-    return defineLegacy;
+    return const String.fromEnvironment('NVIDIA_API_KEY');
   }
 
   String? get nvidiaModelFromEnv {
-    final value = ((dotenv.env['NVIDIA_MODEL'] ?? '')
-            .trim()
-            .isNotEmpty
-        ? dotenv.env['NVIDIA_MODEL']
-        : dotenv.env['GEMINI_MODEL'])
-        ?.trim();
-
-    if ((dotenv.env['NVIDIA_MODEL'] ?? '').trim().isEmpty &&
-        (dotenv.env['GEMINI_MODEL'] ?? '').trim().isNotEmpty) {
-      debugPrint(
-        'AI config: using legacy GEMINI_MODEL as fallback for NVIDIA model selection.',
-      );
-    }
-
-    return (value == null || value.isEmpty) ? null : value;
+    final value = (dotenv.env['NVIDIA_MODEL'] ?? '').trim();
+    return value.isEmpty ? null : value;
   }
+
   List<SleepWindowPrediction>? get sleepWindowPredictions =>
       _sleepWindowPredictions;
   bool get hasNvidiaApiKeyConfigured => nvidiaApiKeyFromEnv.isNotEmpty;
@@ -103,6 +73,7 @@ class AppProvider with ChangeNotifier {
     }
     return true;
   }
+
   bool isDay = true;
   bool is24Hour = true;
   bool isTableView = false;
@@ -160,7 +131,8 @@ class AppProvider with ChangeNotifier {
     // No user or Firestore unavailable — load prefs only
     is24Hour = prefs.getBool('is24Hour$uidKey') ?? true;
     String lang =
-      prefs.getString('language$uidKey') ?? _storedLanguageFromLocale(_systemDefaultLocale());
+        prefs.getString('language$uidKey') ??
+        _storedLanguageFromLocale(_systemDefaultLocale());
     visualThemeMode = prefs.getString('visualThemeMode$uidKey') ?? 'auto';
     locale = _localeFromStoredLanguage(lang);
     DateTime now = DateTime.now();
@@ -211,9 +183,11 @@ class AppProvider with ChangeNotifier {
       final firestoreSettings = await FirebaseService().getSettings(user.uid);
       if (firestoreSettings.isNotEmpty) {
         is24Hour = firestoreSettings['timeFormat24h'] ?? true;
-        final lang = (firestoreSettings['language'] as String?) ??
-          _storedLanguageFromLocale(_systemDefaultLocale());
-        visualThemeMode = (firestoreSettings['visualThemeMode'] as String?) ?? 'auto';
+        final lang =
+            (firestoreSettings['language'] as String?) ??
+            _storedLanguageFromLocale(_systemDefaultLocale());
+        visualThemeMode =
+            (firestoreSettings['visualThemeMode'] as String?) ?? 'auto';
         locale = _localeFromStoredLanguage(lang);
       }
 
@@ -229,8 +203,9 @@ class AppProvider with ChangeNotifier {
       final loaded = <SleepEntry>[];
       entriesData.forEach((id, entryData) {
         try {
-          final entry =
-              SleepEntry.fromJson(Map<String, dynamic>.from(entryData as Map));
+          final entry = SleepEntry.fromJson(
+            Map<String, dynamic>.from(entryData as Map),
+          );
           entry.firestoreId = id;
           entry.syncStatus = 'synced';
           loaded.add(entry);
@@ -469,7 +444,9 @@ class AppProvider with ChangeNotifier {
           isAwake: true,
           startTime: _formatHm(awakeStart),
           endTime: _formatHm(awakeEnd),
-          rationale: isPt ? 'Baseado na média recente' : 'Based on recent average',
+          rationale: isPt
+              ? 'Baseado na média recente'
+              : 'Based on recent average',
         ),
       );
 
@@ -611,15 +588,14 @@ class AppProvider with ChangeNotifier {
     }
 
     if (durations.isEmpty) return null;
-    final totalMinutes = durations.fold<int>(
-      0,
-      (sum, d) => sum + d.inMinutes,
-    );
+    final totalMinutes = durations.fold<int>(0, (sum, d) => sum + d.inMinutes);
     return Duration(minutes: (totalMinutes / durations.length).round());
   }
 
   Duration _fallbackNightDuration(BabyProfile profile) {
-    final range = SleepKnowledgeBase.getRecommendedNightSleepHours(profile.birthdate);
+    final range = SleepKnowledgeBase.getRecommendedNightSleepHours(
+      profile.birthdate,
+    );
     final avgHours = (range.minHours + range.maxHours) / 2;
     return Duration(minutes: (avgHours * 60).round());
   }
@@ -806,31 +782,39 @@ class AppProvider with ChangeNotifier {
     required String dayValue,
     required String nightValue,
   }) async {
-    List<List<String>> rows = [
-      headers,
-    ];
+    List<List<String>> rows = [headers];
     for (int i = 0; i < entries.length; i++) {
       SleepEntry e = entries[i];
       String wokeUpStr = '';
       if (e.wokeUp != null) {
-        wokeUpStr = DateFormat(is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a', locale.languageCode == 'pt' ? 'pt_BR' : 'en').format(e.wokeUp!);
+        wokeUpStr = DateFormat(
+          is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a',
+          locale.languageCode == 'pt' ? 'pt_BR' : 'en',
+        ).format(e.wokeUp!);
       }
       String sleptStr = '';
       if (e.slept != null) {
-        sleptStr = DateFormat(is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a', locale.languageCode == 'pt' ? 'pt_BR' : 'en').format(e.slept!);
+        sleptStr = DateFormat(
+          is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a',
+          locale.languageCode == 'pt' ? 'pt_BR' : 'en',
+        ).format(e.slept!);
       }
       rows.add([
         e.getSleepTime(entries, i),
         e.getAwakeTime(entries, i),
-        wokeUpStr.isNotEmpty ? wokeUpStr : e.getFormattedWokeUp(locale, is24Hour),
+        wokeUpStr.isNotEmpty
+            ? wokeUpStr
+            : e.getFormattedWokeUp(locale, is24Hour),
         sleptStr.isNotEmpty ? sleptStr : e.getFormattedSlept(locale, is24Hour),
         e.isDay ? dayValue : nightValue,
-        e.bottle ? (locale.languageCode == 'pt' ? 'Sim' : 'Yes') : (locale.languageCode == 'pt' ? 'Não' : 'No'),
+        e.bottle
+            ? (locale.languageCode == 'pt' ? 'Sim' : 'Yes')
+            : (locale.languageCode == 'pt' ? 'Não' : 'No'),
         e.getFormattedBottleTime(locale, is24Hour),
       ]);
     }
     String csv = const ListToCsvConverter().convert(rows);
-    
+
     // Get Downloads directory
     Directory? downloadsDir;
     try {
@@ -903,7 +887,9 @@ class AppProvider with ChangeNotifier {
               wokeUp = _parseDateTime(row[2].toString());
             }
             if (row.length > 4 && row[4].toString().isNotEmpty) {
-              isDay = row[4].toString().toLowerCase().contains('day') || row[4].toString().toLowerCase().contains('dia');
+              isDay =
+                  row[4].toString().toLowerCase().contains('day') ||
+                  row[4].toString().toLowerCase().contains('dia');
             }
             if (row.length > 5 && row[5].toString().isNotEmpty) {
               String b = row[5].toString().toLowerCase();
@@ -967,14 +953,28 @@ class AppProvider with ChangeNotifier {
         try {
           DateTime parsed = DateFormat(format, 'pt_BR').parse(dateStr);
           if (!format.contains('yyyy') && !format.contains('yy')) {
-            parsed = DateTime(DateTime.now().year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second);
+            parsed = DateTime(
+              DateTime.now().year,
+              parsed.month,
+              parsed.day,
+              parsed.hour,
+              parsed.minute,
+              parsed.second,
+            );
           }
           return parsed;
         } catch (_) {
           try {
             DateTime parsed = DateFormat(format, 'en').parse(dateStr);
             if (!format.contains('yyyy') && !format.contains('yy')) {
-              parsed = DateTime(DateTime.now().year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second);
+              parsed = DateTime(
+                DateTime.now().year,
+                parsed.month,
+                parsed.day,
+                parsed.hour,
+                parsed.minute,
+                parsed.second,
+              );
             }
             return parsed;
           } catch (_) {
@@ -1040,13 +1040,18 @@ class AppProvider with ChangeNotifier {
       final user = FirebaseService().currentUser;
       if (user == null) return;
 
-      for (var item in _syncQueue.where((i) => i.status == 'pending' || i.status == 'failed')) {
+      for (var item in _syncQueue.where(
+        (i) => i.status == 'pending' || i.status == 'failed',
+      )) {
         try {
           item.status = 'syncing';
 
           switch (item.operation) {
             case 'create':
-              final docId = await FirebaseService().createSleepEntry(user.uid, item.data);
+              final docId = await FirebaseService().createSleepEntry(
+                user.uid,
+                item.data,
+              );
               // Update local entry with Firebase ID
               final createdAt = _asDateTime(item.data['createdAt']);
               final entryIndex = entries.indexWhere(
@@ -1061,14 +1066,21 @@ class AppProvider with ChangeNotifier {
 
             case 'update':
               if (item.entryId.isNotEmpty) {
-                await FirebaseService().updateSleepEntry(user.uid, item.entryId, item.data);
+                await FirebaseService().updateSleepEntry(
+                  user.uid,
+                  item.entryId,
+                  item.data,
+                );
                 item.status = 'synced';
               }
               break;
 
             case 'delete':
               if (item.entryId.isNotEmpty) {
-                await FirebaseService().deleteSleepEntry(user.uid, item.entryId);
+                await FirebaseService().deleteSleepEntry(
+                  user.uid,
+                  item.entryId,
+                );
                 item.status = 'synced';
               }
               break;
@@ -1098,7 +1110,7 @@ class AppProvider with ChangeNotifier {
       final user = FirebaseService().currentUser;
       final uidKey = user != null ? '_${user.uid}' : '';
       final prefs = await SharedPreferences.getInstance();
-      
+
       String? queueJson = prefs.getString('sync_queue$uidKey');
       if (queueJson == null && user != null) {
         // Migration
@@ -1157,9 +1169,14 @@ class AppProvider with ChangeNotifier {
         }
 
         if (entriesToMigrate.isNotEmpty) {
-          await FirebaseService().migrateSleepEntriesToFirestore(user.uid, entriesToMigrate);
+          await FirebaseService().migrateSleepEntriesToFirestore(
+            user.uid,
+            entriesToMigrate,
+          );
           await prefs.setBool('entries_migrated_${user.uid}', true);
-          debugPrint('Migrated ${entriesToMigrate.length} entries to Firestore');
+          debugPrint(
+            'Migrated ${entriesToMigrate.length} entries to Firestore',
+          );
         }
       }
 
@@ -1183,9 +1200,12 @@ class AppProvider with ChangeNotifier {
         e.syncStatus = 'synced';
         return e.toFirestore();
       }).toList();
-      
-      final ids = await FirebaseService().replaceAllSleepEntries(user.uid, entriesData);
-      
+
+      final ids = await FirebaseService().replaceAllSleepEntries(
+        user.uid,
+        entriesData,
+      );
+
       for (int i = 0; i < importedEntries.length; i++) {
         importedEntries[i].firestoreId = ids[i];
       }
@@ -1195,7 +1215,7 @@ class AppProvider with ChangeNotifier {
       debugPrint('Error syncing imported CSV to Firebase: $e');
       // If bulk sync fails, fallback to adding to queue so it tries later
       for (var entry in importedEntries) {
-         _addToSyncQueue('create', entry);
+        _addToSyncQueue('create', entry);
       }
     }
   }
