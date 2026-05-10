@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -26,6 +27,14 @@ class AppProvider with ChangeNotifier {
   List<SyncQueueItem> _syncQueue = [];
   bool _isMigratingData = false;
   List<SleepWindowPrediction>? _sleepWindowPredictions = [];
+  Timer? _aiRefreshTimer;
+
+  void _scheduleAiRefresh() {
+    _aiRefreshTimer?.cancel();
+    _aiRefreshTimer = Timer(const Duration(seconds: 30), () {
+      refreshAiSuggestions();
+    });
+  }
 
   // ─── Baby profile & AI ────────────────────────────────────────────────────
   BabyProfile? babyProfile;
@@ -637,6 +646,17 @@ class AppProvider with ChangeNotifier {
     _syncSettingsToFirestore();
   }
 
+  void checkAndAutoUpdateDayNight() {
+    DateTime now = DateTime.now();
+    if (now.hour >= 18 && isDay) {
+      isDay = false;
+      notifyListeners();
+    } else if (now.hour >= 6 && now.hour < 18 && !isDay) {
+      isDay = true;
+      notifyListeners();
+    }
+  }
+
   void togglePeriod() {
     isDay = !isDay;
     notifyListeners();
@@ -664,8 +684,8 @@ class AppProvider with ChangeNotifier {
     }
     notifyListeners();
     _syncToFirestore();
-    // Refresh AI suggestions after every sleep event
-    refreshAiSuggestions();
+    // Refresh AI suggestions after every sleep event (delayed by 30s)
+    _scheduleAiRefresh();
     _sleepWindowPredictions = _buildSleepWindowPredictions();
   }
 
@@ -745,6 +765,7 @@ class AppProvider with ChangeNotifier {
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
     _sleepWindowPredictions = _buildSleepWindowPredictions();
+    _scheduleAiRefresh();
   }
 
   void editSlept(int index, DateTime newTime) {
@@ -755,6 +776,7 @@ class AppProvider with ChangeNotifier {
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
     _sleepWindowPredictions = _buildSleepWindowPredictions();
+    _scheduleAiRefresh();
   }
 
   void set24Hour(bool value) {

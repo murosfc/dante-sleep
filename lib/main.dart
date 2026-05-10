@@ -10,6 +10,8 @@ import 'screens/main_screen.dart';
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
 
+AppLifecycleListener? _lifecycleListener;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -24,6 +26,17 @@ void main() async {
 
   final provider = AppProvider();
   await provider.loadData();
+  
+  provider.checkAndAutoUpdateDayNight();
+
+  _lifecycleListener = AppLifecycleListener(
+    onStateChange: (state) {
+      if (state == AppLifecycleState.resumed) {
+        provider.checkAndAutoUpdateDayNight();
+      }
+    },
+  );
+
   runApp(MyApp(provider: provider));
 }
 

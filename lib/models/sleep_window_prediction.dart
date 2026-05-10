@@ -29,7 +29,6 @@ class SleepWindow {
     final timeRange = endTime != null
         ? '$startTime → $endTime'
         : '$startTime → ${isPt ? 'Até acordar' : 'Until waking'}';
-    final suffix = rationale != null && rationale!.isNotEmpty ? ' ($rationale)' : '';
-    return '$emoji $type: $timeRange$suffix';
+    return '$emoji $type: $timeRange';
   }
 }
