@@ -9,6 +9,7 @@ import '../knowledge/sleep_knowledge_base.dart';
 import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
+import '../models/sleep_window_prediction.dart';
 
 class NvidiaService {
   NvidiaService._();
@@ -143,6 +144,71 @@ class NvidiaService {
     }
   }
 
+  static Future<List<SleepWindowPrediction>?> getSchedulePredictions({
+    required String apiKey,
+    required BabyProfile profile,
+    required List<SleepEntry> entries,
+    required String languageCode,
+    String? preferredModel,
+  }) async {
+    if (apiKey.trim().isEmpty || entries.isEmpty) return null;
+
+    final modelsToTry = <String>[
+      if (preferredModel != null && preferredModel.trim().isNotEmpty)
+        preferredModel.trim(),
+      'meta/llama-4-maverick-17b-128e-instruct',
+      'meta/llama-3.1-70b-instruct',
+    ].toSet().toList();
+
+    try {
+      final isPt = languageCode == 'pt';
+      final prompt = _buildSchedulePrompt(
+        profile: profile,
+        entries: entries,
+        isPt: isPt,
+      );
+
+      for (final modelName in modelsToTry) {
+        try {
+          final response = await http
+              .post(
+                Uri.parse(_invokeUrl),
+                headers: {
+                  'Authorization': 'Bearer ${apiKey.trim()}',
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({
+                  'model': modelName,
+                  'messages': [
+                    {'role': 'user', 'content': prompt},
+                  ],
+                  'max_tokens': 1024,
+                  'temperature': 0.2,
+                  'stream': false,
+                }),
+              )
+              .timeout(const Duration(seconds: 45));
+
+          if (response.statusCode >= 400) continue;
+
+          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+          final choices = decoded['choices'] as List;
+          final first = choices.first as Map<String, dynamic>;
+          final message = first['message'] as Map<String, dynamic>;
+          final text = (message['content'] as String?) ?? '';
+
+          return _parseScheduleResponse(text, isPt: isPt);
+        } catch (e) {
+          debugPrint('NVIDIA schedule error model=$modelName: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('NvidiaService schedule error: $e');
+    }
+    return null;
+  }
+
   static bool _isModelNotSupportedError(String message) {
     final m = message.toLowerCase();
     return m.contains('not found') ||
@@ -255,6 +321,71 @@ RESPOND STRICTLY with valid JSON. DO NOT write any reasoning, do not explain you
     }
   }
 
+  static String _buildSchedulePrompt({
+    required BabyProfile profile,
+    required List<SleepEntry> entries,
+    required bool isPt,
+  }) {
+    final rag = SleepKnowledgeBase.getContext(profile.birthdate, isPt: isPt);
+    final ageStr = profile.getAgeString(isPt: isPt);
+    final targetBed = profile.targetBedtimeString;
+    final history = _formatHistory(entries, isPt: isPt);
+
+    if (isPt) {
+      return '''Você é um especialista em sono infantil.
+PERFIL: Idade: $ageStr. Dormir: $targetBed.
+DIRETRIZES:
+$rag
+HISTÓRICO RECENTE:
+$history
+
+TAREFA:
+Crie o cronograma ideal de sono para o DIA INTEIRO (hoje/amanhã), começando pelo despertar da manhã até o sono noturno.
+Use as médias reais de duração do histórico, e as janelas de vigília recomendadas para a idade.
+Divida nos períodos exatos: "morning", "midday", "afternoon", "evening", "night".
+
+RESPONDA ESTRITAMENTE EM JSON VÁLIDO. Não escreva texto fora do JSON. Formato:
+{
+  "predictions": [
+    {
+      "period": "morning",
+      "periodName": "🌅 Manhã",
+      "windows": [
+        {"isAwake": true, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Explicação curta"},
+        {"isAwake": false, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Explicação curta"}
+      ]
+    }
+  ]
+}''';
+    } else {
+      return '''You are a pediatric sleep expert.
+PROFILE: Age: $ageStr. Target Bedtime: $targetBed.
+GUIDELINES:
+$rag
+RECENT HISTORY:
+$history
+
+TASK:
+Create the ideal full-day sleep schedule, starting from the morning wake up to the night sleep.
+Use actual averages from the history, and age-appropriate wake windows.
+Divide into periods exactly: "morning", "midday", "afternoon", "evening", "night".
+
+RESPOND STRICTLY IN VALID JSON. No text outside JSON. Format:
+{
+  "predictions": [
+    {
+      "period": "morning",
+      "periodName": "🌅 Morning",
+      "windows": [
+        {"isAwake": true, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Short explanation"},
+        {"isAwake": false, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Short explanation"}
+      ]
+    }
+  ]
+}''';
+    }
+  }
+
   static String _currentSleepContext(List<SleepEntry> entries, {required bool isPt}) {
     if (entries.isEmpty) {
       return isPt
@@ -278,6 +409,12 @@ RESPOND STRICTLY with valid JSON. DO NOT write any reasoning, do not explain you
       context += isPt
           ? '\nATENÇÃO: O bebê está acordado. O último despertar (hora em que acordou) foi às $wakeStr. Calcule a próxima soneca a partir de $wakeStr.'
           : '\nATTENTION: The baby is awake. The last wake-up time was at $wakeStr. Calculate the next nap starting from $wakeStr.';
+
+      if (!latest.isDay) {
+        context += isPt
+            ? '\nRegra importante: Como o último registro foi um sono NOTURNO, esse último despertar significa que o bebê já está acordado pela manhã. A primeira janela de vigília da manhã começa exatamente às $wakeStr (ex: se acordou 5:30 e a janela é de 2h, a primeira soneca será calculada a partir de 5:30).'
+            : '\nImportant rule: Since the last record was a NIGHT sleep, this last wake-up means the baby is already awake for the morning. The first wake window of the morning starts exactly at $wakeStr (e.g., if woke up at 5:30 and the window is 2h, the first nap will be calculated from 5:30).';
+      }
     }
 
     return context;
@@ -426,6 +563,41 @@ RESPOND STRICTLY with valid JSON. DO NOT write any reasoning, do not explain you
         .replaceAll(RegExp(r'\bwake\s*window\b', caseSensitive: false), 'janela de vigília')
         .replaceAll(RegExp(r'\bwake\s*windows\b', caseSensitive: false), 'janelas de vigília');
   }
+
+  static List<SleepWindowPrediction>? _parseScheduleResponse(String raw, {required bool isPt}) {
+    String cleaned = raw.trim();
+    cleaned = cleaned.replaceAll(RegExp(r'```[a-zA-Z]*\n?'), '').trim();
+    final jsonStart = cleaned.indexOf('{');
+    final jsonEnd = cleaned.lastIndexOf('}');
+    if (jsonStart != -1 && jsonEnd > jsonStart) {
+      try {
+        final map = jsonDecode(cleaned.substring(jsonStart, jsonEnd + 1))
+            as Map<String, dynamic>;
+        final list = map['predictions'] as List;
+        return list.map((p) {
+          final pMap = p as Map<String, dynamic>;
+          final wList = pMap['windows'] as List;
+          final windows = wList.map((w) {
+            final wMap = w as Map<String, dynamic>;
+            return SleepWindow(
+              isAwake: wMap['isAwake'] as bool? ?? true,
+              startTime: wMap['startTime'] as String? ?? '--:--',
+              endTime: wMap['endTime'] as String?,
+              rationale: wMap['rationale'] as String?,
+            );
+          }).toList();
+          return SleepWindowPrediction(
+            period: pMap['period'] as String? ?? 'day',
+            periodName: pMap['periodName'] as String? ?? 'Period',
+            windows: windows,
+          );
+        }).toList();
+      } catch (e) {
+        debugPrint('AI schedule parse error: $e');
+      }
+    }
+    return null;
+  }
 }
 
 // Backward-compatible adapter for existing call sites.
@@ -440,6 +612,22 @@ class GeminiService {
     String? preferredModel,
   }) {
     return NvidiaService.getSuggestions(
+      apiKey: apiKey,
+      profile: profile,
+      entries: entries,
+      languageCode: languageCode,
+      preferredModel: preferredModel,
+    );
+  }
+
+  static Future<List<SleepWindowPrediction>?> getSchedulePredictions({
+    required String apiKey,
+    required BabyProfile profile,
+    required List<SleepEntry> entries,
+    required String languageCode,
+    String? preferredModel,
+  }) {
+    return NvidiaService.getSchedulePredictions(
       apiKey: apiKey,
       profile: profile,
       entries: entries,

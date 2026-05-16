@@ -384,7 +384,38 @@ class AppProvider with ChangeNotifier {
 
   Future<void> refreshSleepWindowPredictions({bool force = false}) async {
     if (!force && _sleepWindowPredictions != null) return;
-    _sleepWindowPredictions = _buildSleepWindowPredictions();
+    
+    // Set to null to show loading state
+    _sleepWindowPredictions = null;
+    notifyListeners();
+
+    final apiKey = nvidiaApiKeyFromEnv;
+    if (apiKey.isEmpty || babyProfile == null) {
+      _sleepWindowPredictions = _buildSleepWindowPredictions();
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final result = await GeminiService.getSchedulePredictions(
+        apiKey: apiKey,
+        profile: babyProfile!,
+        entries: entries,
+        languageCode: locale.languageCode,
+        preferredModel: nvidiaModelFromEnv,
+      );
+
+      if (result != null && result.isNotEmpty) {
+        _sleepWindowPredictions = result;
+      } else {
+        // Fallback to math if AI fails
+        _sleepWindowPredictions = _buildSleepWindowPredictions();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing sleep predictions: $e');
+      _sleepWindowPredictions = _buildSleepWindowPredictions();
+    }
+    
     notifyListeners();
   }
 
@@ -399,6 +430,7 @@ class AppProvider with ChangeNotifier {
     double sleepMinutesSum = 0;
     int sleepCount = 0;
     for (final e in completed.take(20)) {
+      if (!e.isDay) continue;
       final diff = e.wokeUp!.difference(e.slept!);
       if (!diff.isNegative) {
         sleepMinutesSum += diff.inMinutes;
@@ -412,8 +444,9 @@ class AppProvider with ChangeNotifier {
       final older = entries[i];
       final newer = entries[i - 1];
       if (older.wokeUp != null && newer.slept != null) {
+        if (!newer.isDay) continue;
         final diff = newer.slept!.difference(older.wokeUp!);
-        if (!diff.isNegative) {
+        if (!diff.isNegative && diff.inHours < 8) {
           awakeMinutesSum += diff.inMinutes;
           awakeCount++;
         }
@@ -428,10 +461,13 @@ class AppProvider with ChangeNotifier {
 
     DateTime cursor;
     final latest = entries.first;
+    bool currentlySleeping = false;
+    
     if (latest.wokeUp != null) {
       cursor = latest.wokeUp!;
     } else if (latest.slept != null) {
       cursor = latest.slept!;
+      currentlySleeping = true;
     } else {
       cursor = DateTime.now();
     }
@@ -446,30 +482,43 @@ class AppProvider with ChangeNotifier {
     };
 
     for (int i = 0; i < 4; i++) {
-      final awakeStart = cursor;
-      final awakeEnd = awakeStart.add(avgAwake);
-      grouped[_periodForHour(awakeStart.hour)]!.add(
-        SleepWindow(
-          isAwake: true,
-          startTime: _formatHm(awakeStart),
-          endTime: _formatHm(awakeEnd),
-          rationale: isPt
-              ? 'Baseado na média recente'
-              : 'Based on recent average',
-        ),
-      );
+      if (currentlySleeping && i == 0) {
+        final sleepEnd = cursor.add(avgSleep);
+        grouped[_periodForHour(cursor.hour)]!.add(
+          SleepWindow(
+            isAwake: false,
+            startTime: _formatHm(cursor),
+            endTime: _formatHm(sleepEnd),
+            rationale: isPt ? 'Duração média de sono' : 'Average sleep duration',
+          ),
+        );
+        cursor = sleepEnd;
+      } else {
+        final awakeStart = cursor;
+        final awakeEnd = awakeStart.add(avgAwake);
+        grouped[_periodForHour(awakeStart.hour)]!.add(
+          SleepWindow(
+            isAwake: true,
+            startTime: _formatHm(awakeStart),
+            endTime: _formatHm(awakeEnd),
+            rationale: isPt
+                ? 'Baseado na média recente'
+                : 'Based on recent average',
+          ),
+        );
 
-      final sleepEnd = awakeEnd.add(avgSleep);
-      grouped[_periodForHour(awakeEnd.hour)]!.add(
-        SleepWindow(
-          isAwake: false,
-          startTime: _formatHm(awakeEnd),
-          endTime: _formatHm(sleepEnd),
-          rationale: isPt ? 'Duração média de sono' : 'Average sleep duration',
-        ),
-      );
+        final sleepEnd = awakeEnd.add(avgSleep);
+        grouped[_periodForHour(awakeEnd.hour)]!.add(
+          SleepWindow(
+            isAwake: false,
+            startTime: _formatHm(awakeEnd),
+            endTime: _formatHm(sleepEnd),
+            rationale: isPt ? 'Duração média de sono' : 'Average sleep duration',
+          ),
+        );
 
-      cursor = sleepEnd;
+        cursor = sleepEnd;
+      }
     }
 
     final order = ['morning', 'midday', 'afternoon', 'evening', 'night'];
@@ -687,6 +736,11 @@ class AppProvider with ChangeNotifier {
     // Refresh AI suggestions after every sleep event (delayed by 30s)
     _scheduleAiRefresh();
     _sleepWindowPredictions = _buildSleepWindowPredictions();
+
+    // Auto-fetch AI full schedule only if the baby just woke up from a night sleep (start of the day)
+    if (!isDormiu && entries.isNotEmpty && !entries[0].isDay) {
+      refreshSleepWindowPredictions(force: true);
+    }
   }
 
   void toggleBottle() {
@@ -766,6 +820,11 @@ class AppProvider with ChangeNotifier {
     _syncToFirestore();
     _sleepWindowPredictions = _buildSleepWindowPredictions();
     _scheduleAiRefresh();
+    
+    // Auto-fetch AI full schedule only if it was a night wake up
+    if (!entries[index].isDay) {
+      refreshSleepWindowPredictions(force: true);
+    }
   }
 
   void editSlept(int index, DateTime newTime) {
