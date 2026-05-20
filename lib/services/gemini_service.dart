@@ -278,9 +278,9 @@ $currentContext
 Determine:
 1. Se o bebê ESTIVER DORMINDO AGORA: calcule a hora que ele deve ACORDAR. Analise o histórico recente para descobrir a duração média das sonecas/sonos NESSE MESMO HORÁRIO. Use a base de conhecimento apenas como fallback caso não haja dados suficientes no histórico.
 2. Se o bebê estiver ACORDADO e for período diurno: horário ideal da PRÓXIMA SONECA (use a janela de vigília apropriada). Sugira o intervalo correspondente (ex: HH:mm - HH:mm).
-3. Se for fim da tarde e faltar no máximo 90 min para a rotina noturna: você PODE sugerir soneca ponte curta.
+3. Conflito Soneca vs Rotina: Se for fim da tarde e a próxima soneca for colidir com a rotina noturna ($routineStartExact) ou terminar a menos de 45 min dela, NÃO sugira uma soneca normal. Você deve decidir entre: a) Sugerir uma "soneca ponte" curta (30-40 min); b) Pular a soneca (deixando nextNapTime null) e sugerir antecipar o início da rotina noturna em bedtimeRoutineStart.
 4. Soneca ponte NUNCA deve ser sugerida de manhã.
-5. Horário para INICIAR A ROTINA NOTURNA: A rotina dura $routineMin minutos e o objetivo é dormir às $targetBed, então a rotina DEVE começar exatamente às $routineStartExact. Sugira esse horário exato ($routineStartExact) caso estejamos no período diurno/tarde e faça sentido para o próximo sono.
+5. Horário para INICIAR A ROTINA NOTURNA: A rotina dura $routineMin minutos e o objetivo é dormir às $targetBed. Normalmente começa às $routineStartExact. Se for sugerir a rotina, você pode usar esse horário ou antecipá-lo caso decida pular a última soneca (conforme regra 3).
 
 IMPORTANTE DE IDIOMA:
 - Responda em português do Brasil
@@ -312,9 +312,9 @@ $currentContext
 Determine:
 1. If the baby IS CURRENTLY SLEEPING: calculate the expected WAKE UP time. Analyze the recent history to find the average duration of sleep/naps AT THIS SAME TIME. Use the knowledge base only as a fallback if there is not enough historical data.
 2. If the baby is AWAKE and it's DAYTIME: ideal time for the NEXT NAP (use age-appropriate wake window). Suggest the range (e.g., HH:mm - HH:mm).
-3. A bridge nap is allowed only near bedtime (up to 90 minutes before the bedtime routine).
+3. Nap vs Routine Conflict: If it is late afternoon and the next nap will collide with the night routine ($routineStartExact) or end less than 45 mins before it, DO NOT suggest a normal nap. You must decide between: a) Suggesting a short "bridge nap" (30-40 min); b) Skipping the nap (leaving nextNapTime null) and suggesting an earlier bedtimeRoutineStart.
 4. Never suggest a bridge nap in the morning.
-5. Time to START THE NIGHT ROUTINE: The routine takes $routineMin minutes and the goal is to sleep at $targetBed, so the routine MUST start exactly at $routineStartExact. Suggest this exact time ($routineStartExact) if it is daytime/afternoon and makes sense for the next sleep block.
+5. Time to START THE NIGHT ROUTINE: The routine takes $routineMin minutes and the goal is to sleep at $targetBed. It normally starts at $routineStartExact. If suggesting the routine, use this time or an earlier time if you decided to skip the last nap (per rule 3).
 
 RESPOND STRICTLY with valid JSON. DO NOT write any reasoning, do not explain your steps, and do not add any introductory or concluding text. The exact format (starting and ending with curly braces) MUST be:
 {"wakeUpTime":"HH:mm|null","wakeUpRationale":"1 sentence explanation","nextNapTime":"HH:mm - HH:mm|null","nextNapRationale":"1 sentence explanation","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 sentence explanation"}''';

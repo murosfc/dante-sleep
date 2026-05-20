@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/localized_strings.dart';
 import '../models/entry.dart';
-
 import '../providers/app_provider.dart';
 
 enum AnalyticsPeriod { all, days7, days14, days30 }
@@ -17,7 +16,8 @@ class AnalyticsScreen extends StatefulWidget {
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderStateMixin {
+class _AnalyticsScreenState extends State<AnalyticsScreen>
+    with TickerProviderStateMixin {
   AnalyticsPeriod _period = AnalyticsPeriod.all;
   DateTime? _selectedNightStartDate;
   late TabController _tabController;
@@ -40,7 +40,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     final strings = LocalizedStrings(context);
     final isDay = provider.isVisualDay;
     final textColor = isDay ? const Color(0xFF12233F) : const Color(0xFFF2ECFF);
-    final subtitleColor = isDay ? const Color(0xFF4B6287) : const Color(0xFFB8A7D5);
+    final subtitleColor = isDay
+        ? const Color(0xFF4B6287)
+        : const Color(0xFFB8A7D5);
 
     return Scaffold(
       appBar: AppBar(
@@ -48,9 +50,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
         bottom: TabBar(
           controller: _tabController,
           labelColor: isDay ? const Color(0xFF12233F) : const Color(0xFFFFFFFF),
-          unselectedLabelColor:
-              isDay ? const Color(0xFF4B6287) : const Color(0xFFD0BEEB),
-          indicatorColor: isDay ? const Color(0xFF12233F) : const Color(0xFFFFFFFF),
+          unselectedLabelColor: isDay
+              ? const Color(0xFF4B6287)
+              : const Color(0xFFD0BEEB),
+          indicatorColor: isDay
+              ? const Color(0xFF12233F)
+              : const Color(0xFFFFFFFF),
           indicatorWeight: 3,
           tabs: [
             Tab(text: strings.sleepAwakeTrend),
@@ -61,32 +66,59 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildAnalyticsTab(provider, strings, isDay, textColor, subtitleColor),
-          _buildSleepWindowsTab(provider, strings, isDay, textColor, subtitleColor),
+          _buildAnalyticsTab(
+            provider,
+            strings,
+            isDay,
+            textColor,
+            subtitleColor,
+          ),
+          _buildSleepWindowsTab(
+            provider,
+            strings,
+            isDay,
+            textColor,
+            subtitleColor,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAnalyticsTab(AppProvider provider, LocalizedStrings strings, bool isDay, Color textColor, Color subtitleColor) {
+  Widget _buildAnalyticsTab(
+    AppProvider provider,
+    LocalizedStrings strings,
+    bool isDay,
+    Color textColor,
+    Color subtitleColor,
+  ) {
     final filtered = _applyPeriodFilter(provider.entries, _period)
       ..sort((a, b) {
-        final aDate = a.slept ?? a.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.slept ?? b.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final aDate =
+            a.slept ?? a.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate =
+            b.slept ?? b.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
         return aDate.compareTo(bDate);
       });
     final nightGroups = _buildNightGroups(provider.entries);
-    final latestNightDate = nightGroups.isEmpty ? null : nightGroups.first.startDate;
-    final effectiveNightDate = _resolveEffectiveNightDate(nightGroups, latestNightDate);
+    final latestNightDate = nightGroups.isEmpty
+        ? null
+        : nightGroups.first.startDate;
+    final effectiveNightDate = _resolveEffectiveNightDate(
+      nightGroups,
+      latestNightDate,
+    );
     final selectedNightGroup = effectiveNightDate == null
-      ? null
-      : _findNightGroupByDate(nightGroups, effectiveNightDate);
+        ? null
+        : _findNightGroupByDate(nightGroups, effectiveNightDate);
     final nightSummary = selectedNightGroup?.summary;
 
-    final nightDailySummaries =
-        _buildDailySummaries(filtered.where((entry) => !entry.isDay).toList());
-    final dayDailySummaries =
-        _buildDailySummaries(filtered.where((entry) => entry.isDay).toList());
+    final nightDailySummaries = _buildDailySummaries(
+      filtered.where((entry) => !entry.isDay).toList(),
+    );
+    final dayDailySummaries = _buildDailySummaries(
+      filtered.where((entry) => entry.isDay).toList(),
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -108,7 +140,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                 TextButton.icon(
                   onPressed: () => _pickNightDate(context, nightGroups),
                   icon: const Icon(Icons.calendar_today, size: 15),
-                  label: Text(_formatNightDateLabel(effectiveNightDate, context)),
+                  label: Text(
+                    _formatNightDateLabel(effectiveNightDate, context),
+                  ),
                 ),
               ],
             )
@@ -164,73 +198,73 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                 else
                   Column(
                     children: [
-                        IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: _buildSummaryMetric(
-                                  strings.totalSlept,
-                                  _formatHours(nightSummary.totalSleepHours),
-                                  textColor,
-                                  subtitleColor,
-                                ),
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.totalSlept,
+                                _formatHours(nightSummary.totalSleepHours),
+                                textColor,
+                                subtitleColor,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildSummaryMetric(
-                                  strings.totalAwake,
-                                  _formatHours(nightSummary.totalAwakeHours),
-                                  textColor,
-                                  subtitleColor,
-                                ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.totalAwake,
+                                _formatHours(nightSummary.totalAwakeHours),
+                                textColor,
+                                subtitleColor,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildSummaryMetric(
-                                  strings.wakeUps,
-                                  '${nightSummary.wakeCount} ${strings.timesUnit}',
-                                  textColor,
-                                  subtitleColor,
-                                ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.wakeUps,
+                                '${nightSummary.wakeCount} ${strings.timesUnit}',
+                                textColor,
+                                subtitleColor,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                      ),
                       const SizedBox(height: 10),
-                        IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: _buildSummaryMetric(
-                                  strings.averageSleep,
-                                  _formatHours(nightSummary.avgSleepBlock),
-                                  textColor,
-                                  subtitleColor,
-                                ),
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.averageSleep,
+                                _formatHours(nightSummary.avgSleepBlock),
+                                textColor,
+                                subtitleColor,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildSummaryMetric(
-                                  strings.averageAwake,
-                                  _formatHours(nightSummary.avgAwakeBlock),
-                                  textColor,
-                                  subtitleColor,
-                                ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.averageAwake,
+                                _formatHours(nightSummary.avgAwakeBlock),
+                                textColor,
+                                subtitleColor,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildSummaryMetric(
-                                  strings.maxSleep,
-                                  _formatHours(nightSummary.maxSleepBlock),
-                                  textColor,
-                                  subtitleColor,
-                                ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _buildSummaryMetric(
+                                strings.maxSleep,
+                                _formatHours(nightSummary.maxSleepBlock),
+                                textColor,
+                                subtitleColor,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
               ],
@@ -241,10 +275,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
             children: [
               Text(
                 strings.filterPeriod,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700, color: textColor),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -305,7 +336,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
               child: ListView(
                 children: [
                   _buildSleepAwakePeriodChart(
-                    title: _t(context, 'Noturno • Sono x Acordado', 'Night • Sleep vs Awake'),
+                    title: _t(
+                      context,
+                      'Noturno • Sono x Acordado',
+                      'Night • Sleep vs Awake',
+                    ),
                     data: nightDailySummaries,
                     subtitleColor: subtitleColor,
                     sleepColor: isDay
@@ -314,14 +349,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                     awakeColor: isDay
                         ? const Color(0xFF35B6A8)
                         : const Color(0xFF64D6CA),
-                    emptyText: _t(context, 'Sem dados noturnos no período', 'No night data for selected period'),
+                    emptyText: _t(
+                      context,
+                      'Sem dados noturnos no período',
+                      'No night data for selected period',
+                    ),
                     hoursUnit: strings.hoursUnit,
                     sleepLabel: strings.totalSlept,
                     awakeLabel: strings.totalAwake,
                   ),
                   const SizedBox(height: 12),
                   _buildSleepAwakePeriodChart(
-                    title: _t(context, 'Diurno • Sono x Acordado', 'Day • Sleep vs Awake'),
+                    title: _t(
+                      context,
+                      'Diurno • Sono x Acordado',
+                      'Day • Sleep vs Awake',
+                    ),
                     data: dayDailySummaries,
                     subtitleColor: subtitleColor,
                     sleepColor: isDay
@@ -330,7 +373,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                     awakeColor: isDay
                         ? const Color(0xFF57C8B8)
                         : const Color(0xFF82E6DB),
-                    emptyText: _t(context, 'Sem dados diurnos no período', 'No day data for selected period'),
+                    emptyText: _t(
+                      context,
+                      'Sem dados diurnos no período',
+                      'No day data for selected period',
+                    ),
                     hoursUnit: strings.hoursUnit,
                     sleepLabel: strings.totalSlept,
                     awakeLabel: strings.totalAwake,
@@ -343,7 +390,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildSleepWindowsTab(AppProvider provider, LocalizedStrings strings, bool isDay, Color textColor, Color subtitleColor) {
+  Widget _buildSleepWindowsTab(
+    AppProvider provider,
+    LocalizedStrings strings,
+    bool isDay,
+    Color textColor,
+    Color subtitleColor,
+  ) {
     final predictions = provider.sleepWindowPredictions;
     final hasEnoughData = provider.entries.length >= 3;
 
@@ -355,7 +408,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
           Row(
             children: [
               Text(
-                _t(context, 'Previsão de Janelas de Sono', 'Sleep Windows Prediction'),
+                _t(
+                  context,
+                  'Previsão de Janelas de Sono',
+                  'Sleep Windows Prediction',
+                ),
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
@@ -365,7 +422,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
               const Spacer(),
               if (hasEnoughData)
                 TextButton.icon(
-                  onPressed: () => provider.refreshSleepWindowPredictions(force: true),
+                  onPressed: () =>
+                      provider.refreshSleepWindowPredictions(force: true),
                   icon: const Icon(Icons.refresh, size: 16),
                   label: Text(_t(context, 'Atualizar', 'Refresh')),
                 ),
@@ -376,7 +434,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
             Expanded(
               child: Center(
                 child: Text(
-                  _t(context, 'Precisa de pelo menos 3 registros para gerar previsões', 'Need at least 3 records to generate predictions'),
+                  _t(
+                    context,
+                    'Precisa de pelo menos 3 registros para gerar previsões',
+                    'Need at least 3 records to generate predictions',
+                  ),
                   style: TextStyle(color: subtitleColor, fontSize: 16),
                   textAlign: TextAlign.center,
                 ),
@@ -388,12 +450,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const CircularProgressIndicator(
-                      color: Color(0xFF9A7CFF),
-                    ),
+                    const CircularProgressIndicator(color: Color(0xFF9A7CFF)),
                     const SizedBox(height: 16),
                     Text(
-                      _t(context, 'Analisando dados para previsões…', 'Analyzing data for predictions…'),
+                      _t(
+                        context,
+                        'Analisando dados para previsões…',
+                        'Analyzing data for predictions…',
+                      ),
                       style: TextStyle(color: subtitleColor),
                     ),
                   ],
@@ -404,7 +468,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
             Expanded(
               child: Center(
                 child: Text(
-                  _t(context, 'Não foi possível gerar previsões', 'Could not generate predictions'),
+                  _t(
+                    context,
+                    'Não foi possível gerar previsões',
+                    'Could not generate predictions',
+                  ),
                   style: TextStyle(color: subtitleColor, fontSize: 16),
                 ),
               ),
@@ -431,17 +499,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                             ),
                           ),
                           const SizedBox(height: 12),
-                          ...prediction.windows.map((window) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              window.displayText(provider.locale.languageCode == 'pt'),
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: subtitleColor,
-                                height: 1.4,
+                          ...prediction.windows.map(
+                            (window) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                window.displayText(
+                                  provider.locale.languageCode == 'pt',
+                                ),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: subtitleColor,
+                                  height: 1.4,
+                                ),
                               ),
                             ),
-                          )),
+                          ),
                         ],
                       ),
                     ),
@@ -461,7 +533,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 10),
             child,
           ],
@@ -487,10 +562,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
         child: SizedBox(
           height: 120,
           child: Center(
-            child: Text(
-              emptyText,
-              style: TextStyle(color: subtitleColor),
-            ),
+            child: Text(emptyText, style: TextStyle(color: subtitleColor)),
           ),
         ),
       );
@@ -545,10 +617,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                       reservedSize: 36,
                       getTitlesWidget: (value, _) => Text(
                         '${value.toInt()}$hoursUnit',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: subtitleColor,
-                        ),
+                        style: TextStyle(fontSize: 10, color: subtitleColor),
                       ),
                     ),
                   ),
@@ -569,7 +638,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
                             _shortDate(data[idx].date),
-                            style: TextStyle(fontSize: 10, color: subtitleColor),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: subtitleColor,
+                            ),
                           ),
                         );
                       },
@@ -618,8 +690,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
       spacing: 14,
       runSpacing: 6,
       children: [
-        _legendItem(color: sleepColor, label: sleepLabel, subtitleColor: subtitleColor),
-        _legendItem(color: awakeColor, label: awakeLabel, subtitleColor: subtitleColor),
+        _legendItem(
+          color: sleepColor,
+          label: sleepLabel,
+          subtitleColor: subtitleColor,
+        ),
+        _legendItem(
+          color: awakeColor,
+          label: awakeLabel,
+          subtitleColor: subtitleColor,
+        ),
       ],
     );
   }
@@ -635,10 +715,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
         Text(
@@ -661,7 +738,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     String label,
     String value,
     Color textColor,
-    Color subtitleColor
+    Color subtitleColor,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -674,19 +751,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: subtitleColor),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: subtitleColor,
+            ),
           ),
           const Spacer(),
           Text(
             value,
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textColor),
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
           ),
         ],
       ),
     );
   }
 
-  List<SleepEntry> _applyPeriodFilter(List<SleepEntry> entries, AnalyticsPeriod period) {
+  List<SleepEntry> _applyPeriodFilter(
+    List<SleepEntry> entries,
+    AnalyticsPeriod period,
+  ) {
     if (period == AnalyticsPeriod.all) {
       return List<SleepEntry>.from(entries);
     }
@@ -715,7 +803,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
   }
 
   double _awakeHours(List<SleepEntry> chronological, int index) {
-    if (chronological[index].wokeUp == null || index + 1 >= chronological.length) {
+    if (chronological[index].wokeUp == null ||
+        index + 1 >= chronological.length) {
       return 0;
     }
     final nextSlept = chronological[index + 1].slept;
@@ -734,7 +823,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     final dates = nightGroups.map((g) => g.startDate).toList()
       ..sort((a, b) => a.compareTo(b));
 
-    final initialDate = _resolveEffectiveNightDate(nightGroups, nightGroups.first.startDate) ?? nightGroups.first.startDate;
+    final initialDate =
+        _resolveEffectiveNightDate(nightGroups, nightGroups.first.startDate) ??
+        nightGroups.first.startDate;
     final locale = Localizations.localeOf(context);
     final picked = await showDatePicker(
       context: context,
@@ -781,7 +872,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
 
     final byDate = <String, _NightGroup>{};
     for (final group in rawGroups) {
-      final key = '${group.startDate.year}-${group.startDate.month}-${group.startDate.day}';
+      final key =
+          '${group.startDate.year}-${group.startDate.month}-${group.startDate.day}';
       byDate.putIfAbsent(key, () => group);
     }
 
@@ -820,6 +912,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     int sleepBlockCount = 0;
     int awakeBlockCount = 0;
 
+    final int? dayWakeIndex = _findDayStartWakeIndex(
+      entriesNewestFirst,
+      indices,
+    );
+
     for (final idx in indices) {
       final entry = entriesNewestFirst[idx];
       var sleepHrs = _sleepHours(entry);
@@ -829,7 +926,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
         if (sleepHrs > maxSleepBlock) maxSleepBlock = sleepHrs;
       }
 
-      if (entry.wokeUp != null) {
+      if (entry.wokeUp != null && idx != dayWakeIndex) {
         wakeCount++;
       }
       if (idx - 1 >= 0 && indexSet.contains(idx - 1)) {
@@ -864,11 +961,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     if (_selectedNightStartDate == null) return fallback;
 
     final selected = _selectedNightStartDate!;
-    final exists = nightGroups.any((group) => _isSameDay(group.startDate, selected));
+    final exists = nightGroups.any(
+      (group) => _isSameDay(group.startDate, selected),
+    );
     return exists ? selected : fallback;
   }
 
-  _NightGroup? _findNightGroupByDate(List<_NightGroup> nightGroups, DateTime date) {
+  _NightGroup? _findNightGroupByDate(
+    List<_NightGroup> nightGroups,
+    DateTime date,
+  ) {
     for (final group in nightGroups) {
       if (_isSameDay(group.startDate, date)) {
         return group;
@@ -877,14 +979,49 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     return null;
   }
 
-  DateTime _asDateOnly(DateTime value) => DateTime(value.year, value.month, value.day);
+  DateTime _asDateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  int? _findDayStartWakeIndex(
+    List<SleepEntry> entriesNewestFirst,
+    List<int> indices,
+  ) {
+    if (indices.isEmpty) return null;
+
+    final newestWakeIndex = indices.firstWhere(
+      (idx) => entriesNewestFirst[idx].wokeUp != null,
+      orElse: () => -1,
+    );
+    if (newestWakeIndex < 0) return null;
+
+    return _isDayWake(entriesNewestFirst, newestWakeIndex)
+        ? newestWakeIndex
+        : null;
+  }
+
+  bool _isDayWake(List<SleepEntry> entriesNewestFirst, int index) {
+    final entry = entriesNewestFirst[index];
+    if (entry.wokeUp == null) return false;
+
+    // If the night group is followed by a day entry, this wake is the start of the day.
+    if (index - 1 >= 0 && entriesNewestFirst[index - 1].isDay) {
+      return true;
+    }
+
+    // Fallback: if there is no next day card and the baby woke up at or after 5am,
+    // treat this wake as the start of the day.
+    final wakeTime = entry.wokeUp!;
+    return wakeTime.hour >= 5;
+  }
+
   String _formatNightDateLabel(DateTime date, BuildContext context) {
-    final locale = Localizations.localeOf(context).languageCode == 'pt' ? 'pt_BR' : 'en';
+    final locale = Localizations.localeOf(context).languageCode == 'pt'
+        ? 'pt_BR'
+        : 'en';
     return DateFormat('dd-MMM', locale).format(date);
   }
 
@@ -900,8 +1037,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
 
     final chronological = List<SleepEntry>.from(filtered)
       ..sort((a, b) {
-        final aDate = a.slept ?? a.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bDate = b.slept ?? b.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final aDate =
+            a.slept ?? a.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate =
+            b.slept ?? b.wokeUp ?? DateTime.fromMillisecondsSinceEpoch(0);
         return aDate.compareTo(bDate);
       });
 
@@ -914,7 +1053,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
       final day = _asDateOnly(anchor);
       final key = '${day.year}-${day.month}-${day.day}';
 
-      final current = byDay[key] ?? _DailySummary(date: day, sleepHours: 0, awakeHours: 0, wakeUps: 0);
+      final current =
+          byDay[key] ??
+          _DailySummary(date: day, sleepHours: 0, awakeHours: 0, wakeUps: 0);
       final sleep = _sleepHours(entry);
       final awake = _awakeHours(chronological, i);
 
