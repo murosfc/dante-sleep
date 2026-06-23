@@ -357,6 +357,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     hoursUnit: strings.hoursUnit,
                     sleepLabel: strings.totalSlept,
                     awakeLabel: strings.totalAwake,
+                    isVisualDay: isDay,
                   ),
                   const SizedBox(height: 12),
                   _buildSleepAwakePeriodChart(
@@ -381,6 +382,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     hoursUnit: strings.hoursUnit,
                     sleepLabel: strings.totalSlept,
                     awakeLabel: strings.totalAwake,
+                    isVisualDay: isDay,
                   ),
                 ],
               ),
@@ -555,6 +557,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     required String hoursUnit,
     required String sleepLabel,
     required String awakeLabel,
+    required bool isVisualDay,
   }) {
     if (data.isEmpty) {
       return _buildChartCard(
@@ -601,6 +604,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               LineChartData(
                 minY: 0,
                 maxY: maxY,
+                lineTouchData: LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (touchedSpot) => isVisualDay
+                        ? const Color(0xFFE3EDFA)
+                        : const Color(0xFF2E2440),
+                    getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                      return touchedSpots.map((LineBarSpot touchedSpot) {
+                        final isSleepBar = touchedSpot.barIndex == 0;
+                        final color = isSleepBar ? sleepColor : awakeColor;
+                        final label = isSleepBar ? sleepLabel : awakeLabel;
+                        return LineTooltipItem(
+                          '$label: ${_formatTooltipValue(touchedSpot.y)}$hoursUnit',
+                          TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
@@ -810,7 +835,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     final nextSlept = chronological[index + 1].slept;
     if (nextSlept == null) return 0;
     final diff = nextSlept.difference(chronological[index].wokeUp!);
-    if (diff.isNegative) return 0;
+    if (diff.isNegative || diff.inHours >= 8) return 0;
     return diff.inMinutes / 60;
   }
 
@@ -859,6 +884,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
 
       final indices = <int>[];
       while (i < entriesNewestFirst.length && !entriesNewestFirst[i].isDay) {
+        if (indices.isNotEmpty) {
+          final currentEntry = entriesNewestFirst[i];
+          final newerEntry = entriesNewestFirst[indices.last];
+          if (newerEntry.slept != null && currentEntry.wokeUp != null) {
+            final gap = newerEntry.slept!.difference(currentEntry.wokeUp!);
+            if (gap.inHours >= 8) {
+              break;
+            }
+          }
+        }
         indices.add(i);
         i++;
       }
@@ -933,7 +968,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         final newer = entriesNewestFirst[idx - 1];
         if (newer.slept != null && entry.wokeUp != null) {
           final diff = newer.slept!.difference(entry.wokeUp!);
-          if (!diff.isNegative) {
+          if (!diff.isNegative && diff.inHours < 8) {
             totalAwake += diff.inMinutes / 60;
             awakeBlockCount++;
           }
@@ -1007,12 +1042,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     final entry = entriesNewestFirst[index];
     if (entry.wokeUp == null) return false;
 
-    // If the night group is followed by a day entry, this wake is the start of the day.
-    if (index - 1 >= 0 && entriesNewestFirst[index - 1].isDay) {
-      return true;
+    // If there is a next card, check if it is a day entry.
+    if (index - 1 >= 0) {
+      return entriesNewestFirst[index - 1].isDay;
     }
 
-    // Fallback: if there is no next day card and the baby woke up at or after 5am,
+    // Fallback: if there is no next card and the baby woke up at or after 5am,
     // treat this wake as the start of the day.
     final wakeTime = entry.wokeUp!;
     return wakeTime.hour >= 5;
@@ -1030,6 +1065,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     final h = totalMinutes ~/ 60;
     final m = totalMinutes % 60;
     return '$h:${m.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTooltipValue(double value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+    final str = value.toStringAsFixed(2);
+    if (str.endsWith('.00')) {
+      return str.substring(0, str.length - 3);
+    }
+    if (str.endsWith('0')) {
+      return str.substring(0, str.length - 1);
+    }
+    return str;
   }
 
   List<_DailySummary> _buildDailySummaries(List<SleepEntry> filtered) {

@@ -21,6 +21,7 @@ import '../models/sync_queue_item.dart';
 import '../services/firebase_service.dart';
 import '../services/gemini_service.dart';
 import '../services/notification_service.dart';
+import '../services/widget_service.dart';
 
 class AppProvider with ChangeNotifier {
   List<SleepEntry> entries = [];
@@ -34,6 +35,16 @@ class AppProvider with ChangeNotifier {
     _aiRefreshTimer = Timer(const Duration(seconds: 30), () {
       refreshAiSuggestions();
     });
+  }
+
+  void _updateWidget() {
+    WidgetService.updateHomeScreenWidget(
+      entries: entries,
+      locale: locale,
+      is24Hour: is24Hour,
+      babyName: babyProfile?.name,
+      isLightTheme: isVisualDay,
+    );
   }
 
   // ─── Baby profile & AI ────────────────────────────────────────────────────
@@ -149,6 +160,7 @@ class AppProvider with ChangeNotifier {
     _loadedUserId = null;
     babyProfileLoaded = true;
     notifyListeners();
+    _updateWidget();
   }
 
   Future<void> ensureUserDataLoadedFor(User user) async {
@@ -198,6 +210,9 @@ class AppProvider with ChangeNotifier {
         visualThemeMode =
             (firestoreSettings['visualThemeMode'] as String?) ?? 'auto';
         locale = _localeFromStoredLanguage(lang);
+        
+        // Save to SharedPreferences so local settings are synchronized
+        await saveData();
       }
 
       // 1.1 User profile
@@ -247,6 +262,7 @@ class AppProvider with ChangeNotifier {
       babyProfileLoaded = true;
 
       notifyListeners();
+      _updateWidget();
 
       // 4. Migration (legacy local → Firestore) + pending sync
       await _migrateOldEntriesToFirestore();
@@ -673,6 +689,7 @@ class AppProvider with ChangeNotifier {
     _loadedUserId = null;
     babyProfileLoaded = false;
     notifyListeners();
+    _updateWidget();
   }
 
   /// Persists only user preferences (settings) locally.
@@ -691,6 +708,7 @@ class AppProvider with ChangeNotifier {
     if (mode != 'auto' && mode != 'day' && mode != 'night') return;
     visualThemeMode = mode;
     notifyListeners();
+    _updateWidget();
     saveData();
     _syncSettingsToFirestore();
   }
@@ -700,15 +718,18 @@ class AppProvider with ChangeNotifier {
     if (now.hour >= 18 && isDay) {
       isDay = false;
       notifyListeners();
+      _updateWidget();
     } else if (now.hour >= 6 && now.hour < 18 && !isDay) {
       isDay = true;
       notifyListeners();
+      _updateWidget();
     }
   }
 
   void togglePeriod() {
     isDay = !isDay;
     notifyListeners();
+    _updateWidget();
   }
 
   void toggleButton() {
@@ -732,6 +753,7 @@ class AppProvider with ChangeNotifier {
       }
     }
     notifyListeners();
+    _updateWidget();
     _syncToFirestore();
     // Refresh AI suggestions after every sleep event (delayed by 30s)
     _scheduleAiRefresh();
@@ -816,6 +838,7 @@ class AppProvider with ChangeNotifier {
     entries[index].syncStatus = 'pending';
     entries[index].updatedAt = DateTime.now();
     notifyListeners();
+    _updateWidget();
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
     _sleepWindowPredictions = _buildSleepWindowPredictions();
@@ -832,6 +855,7 @@ class AppProvider with ChangeNotifier {
     entries[index].syncStatus = 'pending';
     entries[index].updatedAt = DateTime.now();
     notifyListeners();
+    _updateWidget();
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
     _sleepWindowPredictions = _buildSleepWindowPredictions();
@@ -841,6 +865,7 @@ class AppProvider with ChangeNotifier {
   void set24Hour(bool value) {
     is24Hour = value;
     notifyListeners();
+    _updateWidget();
     saveData();
     _syncSettingsToFirestore();
   }
@@ -848,6 +873,7 @@ class AppProvider with ChangeNotifier {
   void setLanguage(String lang) {
     locale = _localeFromStoredLanguage(lang);
     notifyListeners();
+    _updateWidget();
     saveData();
     _syncSettingsToFirestore();
   }
@@ -1010,6 +1036,7 @@ class AppProvider with ChangeNotifier {
       selectedIndex = null;
 
       notifyListeners();
+      _updateWidget();
       _syncImportedEntries(importedEntries);
       return importedEntries.length;
     } catch (e) {
@@ -1075,6 +1102,7 @@ class AppProvider with ChangeNotifier {
       entries.removeAt(index);
       selectedIndex = null;
       notifyListeners();
+      _updateWidget();
       if (entry.firestoreId != null) {
         _addToSyncQueue('delete', entry);
       }

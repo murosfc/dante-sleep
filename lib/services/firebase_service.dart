@@ -44,15 +44,50 @@ class FirebaseService {
 
   Future<void> _ensureUserDocument(User user) async {
     final userDoc = firestore.collection('users').doc(user.uid);
+    final docSnapshot = await userDoc.get();
     final now = FieldValue.serverTimestamp();
     final defaultLanguage = _defaultLanguageFromSystem();
 
-    await userDoc.set({
-      'email': user.email,
-      'createdAt': now,
-      'updatedAt': now,
-      'settings': {'language': defaultLanguage, 'timeFormat24h': true},
-    }, SetOptions(merge: true));
+    if (!docSnapshot.exists) {
+      await userDoc.set({
+        'email': user.email,
+        'createdAt': now,
+        'updatedAt': now,
+        'settings': {
+          'language': defaultLanguage,
+          'timeFormat24h': true,
+          'visualThemeMode': 'auto',
+        },
+      });
+    } else {
+      final data = docSnapshot.data();
+      final hasSettings = data != null && data.containsKey('settings');
+      if (!hasSettings) {
+        await userDoc.set({
+          'email': user.email,
+          'updatedAt': now,
+          'settings': {
+            'language': defaultLanguage,
+            'timeFormat24h': true,
+            'visualThemeMode': 'auto',
+          },
+        }, SetOptions(merge: true));
+      } else {
+        final settings = data['settings'] as Map<dynamic, dynamic>?;
+        if (settings == null || !settings.containsKey('visualThemeMode')) {
+          await userDoc.update({
+            'email': user.email,
+            'updatedAt': now,
+            'settings.visualThemeMode': 'auto',
+          });
+        } else {
+          await userDoc.set({
+            'email': user.email,
+            'updatedAt': now,
+          }, SetOptions(merge: true));
+        }
+      }
+    }
   }
 
   String _defaultLanguageFromSystem() {
