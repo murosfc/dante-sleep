@@ -26,7 +26,7 @@
             android:id="@+id/widget_status_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Dante está acordado há"
+            android:text="@string/widget_status_label_default"
             android:textSize="13sp"
             android:textColor="#9012233F" />
 
@@ -37,15 +37,6 @@
             android:textSize="24sp"
             android:textStyle="bold"
             android:textColor="#12233F" />
-
-        <TextView
-            android:id="@+id/widget_status_since"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
-            android:text="desde as 12:45"
-            android:textSize="11sp"
-            android:textColor="#7012233F" />
     </LinearLayout>
 
 </LinearLayout>
