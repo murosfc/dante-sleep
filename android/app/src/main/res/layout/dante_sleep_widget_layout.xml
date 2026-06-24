@@ -30,13 +30,30 @@
             android:textSize="13sp"
             android:textColor="#9012233F" />
 
-        <Chronometer
-            android:id="@+id/widget_chronometer"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="#12233F" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/widget_duration_prefix"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_duration_prefix_default"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#12233F"
+                android:layout_marginEnd="6dp" />
+
+            <Chronometer
+                android:id="@+id/widget_chronometer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#12233F" />
+        </LinearLayout>
     </LinearLayout>
 
 </LinearLayout>

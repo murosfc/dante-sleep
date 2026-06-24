@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_status_label_default">Baby is awake for</string>
+    <string name="widget_status_label_default">Baby is awake since --:--</string>
+    <string name="widget_duration_prefix_default">For </string>
 </resources>

@@ -22,6 +22,7 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
             // Retrieve data from SharedPreferences sent by Flutter
             val isSleeping = widgetData.getBoolean("is_sleeping", false)
             val statusLabel = widgetData.getString("status_label", "Acordado há")
+            val durationPrefix = widgetData.getString("duration_prefix", "Há")
             
             // Safe-cast retrieval for state_start_time to prevent ClassCastException
             val stateStartTimeVal = widgetData.all["state_start_time"]
@@ -39,6 +40,7 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
             if (isLightTheme) {
                 views.setInt(R.id.widget_container, "setBackgroundResource", R.drawable.widget_bg_awake)
                 views.setTextColor(R.id.widget_status_label, 0x9012233F.toInt())
+                views.setTextColor(R.id.widget_duration_prefix, 0xFF12233F.toInt())
                 views.setTextColor(R.id.widget_chronometer, 0xFF12233F.toInt())
 
                 if (isSleeping) {
@@ -51,6 +53,7 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
             } else {
                 views.setInt(R.id.widget_container, "setBackgroundResource", R.drawable.widget_bg_sleeping)
                 views.setTextColor(R.id.widget_status_label, 0xB0EADFFF.toInt())
+                views.setTextColor(R.id.widget_duration_prefix, 0xFFEADFFF.toInt())
                 views.setTextColor(R.id.widget_chronometer, 0xFFEADFFF.toInt())
 
                 if (isSleeping) {
@@ -64,6 +67,7 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
 
             // Update texts
             views.setTextViewText(R.id.widget_status_label, statusLabel)
+            views.setTextViewText(R.id.widget_duration_prefix, durationPrefix)
 
             // Configure Chronometer
             if (stateStartTime > 0L) {
