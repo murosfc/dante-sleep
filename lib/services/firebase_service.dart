@@ -188,7 +188,7 @@ class FirebaseService {
   ) async {
     try {
       await firestore.collection('sleep_entries').doc(userId).update({
-        '$entryId': entryData,
+        entryId: entryData,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {

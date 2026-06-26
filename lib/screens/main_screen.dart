@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../l10n/localized_strings.dart';
 import '../providers/app_provider.dart';
-import '../services/firebase_service.dart';
 import '../widgets/settings_bottom_sheet.dart';
 import 'analytics_screen.dart';
 
@@ -519,9 +518,10 @@ class MainScreen extends StatelessWidget {
     DateTime? current = isWokeUp
         ? provider.entries[index].wokeUp
         : provider.entries[index].slept;
-    if (current == null) {
-      current = provider.entries[index].slept ?? provider.entries[index].wokeUp ?? DateTime.now();
-    }
+    current ??=
+        provider.entries[index].slept ??
+        provider.entries[index].wokeUp ??
+        DateTime.now();
     DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: current,

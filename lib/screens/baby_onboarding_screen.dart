@@ -522,7 +522,7 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
                   const TextStyle(color: Color(0xFF7A6990), fontSize: 12)),
           value: value,
           onChanged: onChanged,
-          activeColor: const Color(0xFF9A7CFF),
+      activeThumbColor: const Color(0xFF9A7CFF),
         ),
       );
 }

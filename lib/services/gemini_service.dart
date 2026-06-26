@@ -32,12 +32,12 @@ class NvidiaService {
             : 'Not enough data to generate suggestions. Please add sleep records first.',
       );
     }
-    final modelsToTry = <String>[
+    final modelsToTry = <String>{
       if (preferredModel != null && preferredModel.trim().isNotEmpty)
         preferredModel.trim(),
       'meta/llama-4-maverick-17b-128e-instruct',
       'meta/llama-3.1-70b-instruct',
-    ].toSet().toList();
+    }.toList();
 
     try {
       final isPt = languageCode == 'pt';
@@ -152,12 +152,12 @@ class NvidiaService {
   }) async {
     if (apiKey.trim().isEmpty || entries.isEmpty) return null;
 
-    final modelsToTry = <String>[
+    final modelsToTry = <String>{
       if (preferredModel != null && preferredModel.trim().isNotEmpty)
         preferredModel.trim(),
       'meta/llama-4-maverick-17b-128e-instruct',
       'meta/llama-3.1-70b-instruct',
-    ].toSet().toList();
+    }.toList();
 
     try {
       final isPt = languageCode == 'pt';

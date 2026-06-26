@@ -173,11 +173,11 @@ class NotificationService {
     final hasBaby = babyName != null && babyName.trim().isNotEmpty;
     if (isPt) {
       return hasBaby
-          ? '🌅 Previsão de acordar de ${babyName!.trim()}'
+          ? '🌅 Previsão de acordar de ${babyName.trim()}'
           : '🌅 Previsão de acordar ${_ptPossessiveBaby(babySex)}';
     }
     return hasBaby
-        ? '🌅 ${babyName!.trim()} wake-up forecast'
+        ? '🌅 ${babyName.trim()} wake-up forecast'
         : '🌅 Baby wake-up forecast';
   }
 
