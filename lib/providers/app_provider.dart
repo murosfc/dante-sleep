@@ -16,7 +16,6 @@ import '../knowledge/sleep_knowledge_base.dart';
 import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
-import '../models/sleep_window_prediction.dart';
 import '../models/sync_queue_item.dart';
 import '../services/firebase_service.dart';
 import '../services/gemini_service.dart';
@@ -27,7 +26,7 @@ class AppProvider with ChangeNotifier {
   List<SleepEntry> entries = [];
   List<SyncQueueItem> _syncQueue = [];
   bool _isMigratingData = false;
-  List<SleepWindowPrediction>? _sleepWindowPredictions = [];
+  String? _sleepWindowPredictions = '';
   Timer? _aiRefreshTimer;
 
   void _scheduleAiRefresh() {
@@ -75,8 +74,7 @@ class AppProvider with ChangeNotifier {
     return value.isEmpty ? null : value;
   }
 
-  List<SleepWindowPrediction>? get sleepWindowPredictions =>
-      _sleepWindowPredictions;
+  String? get sleepWindowPredictions => _sleepWindowPredictions;
   bool get hasNvidiaApiKeyConfigured => nvidiaApiKeyFromEnv.isNotEmpty;
   bool get hasPendingAiNotifications =>
       !_aiSuggestionsRead && aiUnreadCount > 0;
@@ -244,7 +242,7 @@ class AppProvider with ChangeNotifier {
         return b.slept!.compareTo(a.slept!);
       });
       entries = loaded;
-      _sleepWindowPredictions = _buildSleepWindowPredictions();
+      _sleepWindowPredictions = '';
 
       // 3. Baby profile
       final babyData = await FirebaseService().getBabyData(user.uid);
@@ -407,7 +405,7 @@ class AppProvider with ChangeNotifier {
 
     final apiKey = nvidiaApiKeyFromEnv;
     if (apiKey.isEmpty || babyProfile == null) {
-      _sleepWindowPredictions = _buildSleepWindowPredictions();
+      _sleepWindowPredictions = '';
       notifyListeners();
       return;
     }
@@ -421,159 +419,13 @@ class AppProvider with ChangeNotifier {
         preferredModel: nvidiaModelFromEnv,
       );
 
-      if (result != null && result.isNotEmpty) {
-        _sleepWindowPredictions = result;
-      } else {
-        // Fallback to math if AI fails
-        _sleepWindowPredictions = _buildSleepWindowPredictions();
-      }
+      _sleepWindowPredictions = (result != null && result.isNotEmpty) ? result : '';
     } catch (e) {
       debugPrint('Error refreshing sleep predictions: $e');
-      _sleepWindowPredictions = _buildSleepWindowPredictions();
+      _sleepWindowPredictions = '';
     }
     
     notifyListeners();
-  }
-
-  List<SleepWindowPrediction> _buildSleepWindowPredictions() {
-    if (entries.length < 3) return [];
-
-    final completed = entries
-        .where((e) => e.slept != null && e.wokeUp != null)
-        .toList();
-    if (completed.length < 2) return [];
-
-    double sleepMinutesSum = 0;
-    int sleepCount = 0;
-    for (final e in completed.take(20)) {
-      if (!e.isDay) continue;
-      final diff = e.wokeUp!.difference(e.slept!);
-      if (!diff.isNegative) {
-        sleepMinutesSum += diff.inMinutes;
-        sleepCount++;
-      }
-    }
-
-    double awakeMinutesSum = 0;
-    int awakeCount = 0;
-    for (int i = 1; i < entries.length; i++) {
-      final older = entries[i];
-      final newer = entries[i - 1];
-      if (older.wokeUp != null && newer.slept != null) {
-        if (!newer.isDay) continue;
-        final diff = newer.slept!.difference(older.wokeUp!);
-        if (!diff.isNegative && diff.inHours < 8) {
-          awakeMinutesSum += diff.inMinutes;
-          awakeCount++;
-        }
-      }
-      if (awakeCount >= 20) break;
-    }
-
-    if (sleepCount == 0 || awakeCount == 0) return [];
-
-    final avgSleep = Duration(minutes: (sleepMinutesSum / sleepCount).round());
-    final avgAwake = Duration(minutes: (awakeMinutesSum / awakeCount).round());
-
-    DateTime cursor;
-    final latest = entries.first;
-    bool currentlySleeping = false;
-    
-    if (latest.wokeUp != null) {
-      cursor = latest.wokeUp!;
-    } else if (latest.slept != null) {
-      cursor = latest.slept!;
-      currentlySleeping = true;
-    } else {
-      cursor = DateTime.now();
-    }
-
-    final isPt = locale.languageCode == 'pt';
-    final grouped = <String, List<SleepWindow>>{
-      'morning': [],
-      'midday': [],
-      'afternoon': [],
-      'evening': [],
-      'night': [],
-    };
-
-    for (int i = 0; i < 4; i++) {
-      if (currentlySleeping && i == 0) {
-        final sleepEnd = cursor.add(avgSleep);
-        grouped[_periodForHour(cursor.hour)]!.add(
-          SleepWindow(
-            isAwake: false,
-            startTime: _formatHm(cursor),
-            endTime: _formatHm(sleepEnd),
-            rationale: isPt ? 'Duração média de sono' : 'Average sleep duration',
-          ),
-        );
-        cursor = sleepEnd;
-      } else {
-        final awakeStart = cursor;
-        final awakeEnd = awakeStart.add(avgAwake);
-        grouped[_periodForHour(awakeStart.hour)]!.add(
-          SleepWindow(
-            isAwake: true,
-            startTime: _formatHm(awakeStart),
-            endTime: _formatHm(awakeEnd),
-            rationale: isPt
-                ? 'Baseado na média recente'
-                : 'Based on recent average',
-          ),
-        );
-
-        final sleepEnd = awakeEnd.add(avgSleep);
-        grouped[_periodForHour(awakeEnd.hour)]!.add(
-          SleepWindow(
-            isAwake: false,
-            startTime: _formatHm(awakeEnd),
-            endTime: _formatHm(sleepEnd),
-            rationale: isPt ? 'Duração média de sono' : 'Average sleep duration',
-          ),
-        );
-
-        cursor = sleepEnd;
-      }
-    }
-
-    final order = ['morning', 'midday', 'afternoon', 'evening', 'night'];
-    final predictions = <SleepWindowPrediction>[];
-    for (final period in order) {
-      final windows = grouped[period]!;
-      if (windows.isEmpty) continue;
-      predictions.add(
-        SleepWindowPrediction(
-          period: period,
-          periodName: _periodDisplayName(period, isPt),
-          windows: windows,
-        ),
-      );
-    }
-    return predictions;
-  }
-
-  String _periodForHour(int hour) {
-    if (hour >= 5 && hour < 10) return 'morning';
-    if (hour >= 10 && hour < 14) return 'midday';
-    if (hour >= 14 && hour < 18) return 'afternoon';
-    if (hour >= 18 && hour < 22) return 'evening';
-    return 'night';
-  }
-
-  String _periodDisplayName(String period, bool isPt) {
-    switch (period) {
-      case 'morning':
-        return isPt ? '🌅 Manhã' : '🌅 Morning';
-      case 'midday':
-        return isPt ? '🌞 Meio do dia' : '🌞 Midday';
-      case 'afternoon':
-        return isPt ? '🌤️ Tarde' : '🌤️ Afternoon';
-      case 'evening':
-        return isPt ? '🌆 Início da noite' : '🌆 Evening';
-      default:
-        return isPt ? '🌙 Noite' : '🌙 Night';
-    }
   }
 
   bool _isNightContext() {
@@ -757,7 +609,7 @@ class AppProvider with ChangeNotifier {
     _syncToFirestore();
     // Refresh AI suggestions after every sleep event (delayed by 30s)
     _scheduleAiRefresh();
-    _sleepWindowPredictions = _buildSleepWindowPredictions();
+    _sleepWindowPredictions = '';
 
     // Auto-fetch AI full schedule only if the baby just woke up from a night sleep (start of the day)
     if (!isDormiu && entries.isNotEmpty && !entries[0].isDay) {
@@ -841,7 +693,7 @@ class AppProvider with ChangeNotifier {
     _updateWidget();
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
-    _sleepWindowPredictions = _buildSleepWindowPredictions();
+    _sleepWindowPredictions = '';
     _scheduleAiRefresh();
     
     // Auto-fetch AI full schedule only if it was a night wake up
@@ -858,7 +710,7 @@ class AppProvider with ChangeNotifier {
     _updateWidget();
     _addToSyncQueue('update', entries[index]);
     _syncToFirestore();
-    _sleepWindowPredictions = _buildSleepWindowPredictions();
+    _sleepWindowPredictions = '';
     _scheduleAiRefresh();
   }
 
@@ -1107,7 +959,7 @@ class AppProvider with ChangeNotifier {
         _addToSyncQueue('delete', entry);
       }
       _syncToFirestore();
-      _sleepWindowPredictions = _buildSleepWindowPredictions();
+      _sleepWindowPredictions = '';
     }
   }
 

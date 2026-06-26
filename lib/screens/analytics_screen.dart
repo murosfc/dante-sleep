@@ -120,6 +120,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       filtered.where((entry) => entry.isDay).toList(),
     );
 
+    final useWeekly = nightDailySummaries.length > 30 ||
+        dayDailySummaries.length > 30;
+    final nightChartData = useWeekly
+        ? _buildWeeklySummaries(nightDailySummaries)
+        : nightDailySummaries;
+    final dayChartData = useWeekly
+        ? _buildWeeklySummaries(dayDailySummaries)
+        : dayDailySummaries;
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -341,7 +350,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                       'Noturno • Sono x Acordado',
                       'Night • Sleep vs Awake',
                     ),
-                    data: nightDailySummaries,
+                    data: nightChartData,
                     subtitleColor: subtitleColor,
                     sleepColor: isDay
                         ? const Color(0xFF2A6CE8)
@@ -358,6 +367,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     sleepLabel: strings.totalSlept,
                     awakeLabel: strings.totalAwake,
                     isVisualDay: isDay,
+                    isWeekly: useWeekly,
                   ),
                   const SizedBox(height: 12),
                   _buildSleepAwakePeriodChart(
@@ -366,7 +376,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                       'Diurno • Sono x Acordado',
                       'Day • Sleep vs Awake',
                     ),
-                    data: dayDailySummaries,
+                    data: dayChartData,
                     subtitleColor: subtitleColor,
                     sleepColor: isDay
                         ? const Color(0xFF4A86F8)
@@ -383,6 +393,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     sleepLabel: strings.totalSlept,
                     awakeLabel: strings.totalAwake,
                     isVisualDay: isDay,
+                    isWeekly: useWeekly,
                   ),
                 ],
               ),
@@ -481,46 +492,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             )
           else
             Expanded(
-              child: ListView.builder(
-                itemCount: predictions.length,
-                itemBuilder: (context, index) {
-                  final prediction = predictions[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            prediction.periodName,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: textColor,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...prediction.windows.map(
-                            (window) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                window.displayText(
-                                  provider.locale.languageCode == 'pt',
-                                ),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: subtitleColor,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              child: SingleChildScrollView(
+                child: Text(
+                  predictions,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: textColor,
+                    height: 1.7,
+                    fontFamily: 'monospace',
+                  ),
+                ),
               ),
             ),
         ],
@@ -558,6 +539,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     required String sleepLabel,
     required String awakeLabel,
     required bool isVisualDay,
+    bool isWeekly = false,
   }) {
     if (data.isEmpty) {
       return _buildChartCard(
@@ -590,12 +572,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildChartLegend(
-            subtitleColor: subtitleColor,
-            sleepColor: sleepColor,
-            awakeColor: awakeColor,
-            sleepLabel: sleepLabel,
-            awakeLabel: awakeLabel,
+          Row(
+            children: [
+              Expanded(
+                child: _buildChartLegend(
+                  subtitleColor: subtitleColor,
+                  sleepColor: sleepColor,
+                  awakeColor: awakeColor,
+                  sleepLabel: sleepLabel,
+                  awakeLabel: awakeLabel,
+                ),
+              ),
+              if (isWeekly)
+                Text(
+                  _t(context, 'Média semanal', 'Weekly avg'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: subtitleColor,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -1119,6 +1116,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     final result = byDay.values.toList()
       ..sort((a, b) => a.date.compareTo(b.date));
     return result;
+  }
+
+  List<_DailySummary> _buildWeeklySummaries(List<_DailySummary> daily) {
+    if (daily.isEmpty) return const [];
+
+    final byWeek = <DateTime, List<_DailySummary>>{};
+    for (final d in daily) {
+      final monday = d.date.subtract(Duration(days: d.date.weekday - 1));
+      final weekKey = DateTime(monday.year, monday.month, monday.day);
+      byWeek.putIfAbsent(weekKey, () => []).add(d);
+    }
+
+    return byWeek.entries.map((e) {
+      final days = e.value;
+      final n = days.length;
+      final avgSleep = days.fold(0.0, (s, d) => s + d.sleepHours) / n;
+      final avgAwake = days.fold(0.0, (s, d) => s + d.awakeHours) / n;
+      final totalWakeUps = days.fold(0, (s, d) => s + d.wakeUps);
+      return _DailySummary(
+        date: e.key,
+        sleepHours: avgSleep,
+        awakeHours: avgAwake,
+        wakeUps: totalWakeUps,
+      );
+    }).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
   }
 
   String _shortDate(DateTime date) {

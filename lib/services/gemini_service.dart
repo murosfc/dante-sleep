@@ -9,7 +9,6 @@ import '../knowledge/sleep_knowledge_base.dart';
 import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
-import '../models/sleep_window_prediction.dart';
 
 class NvidiaService {
   NvidiaService._();
@@ -144,7 +143,7 @@ class NvidiaService {
     }
   }
 
-  static Future<List<SleepWindowPrediction>?> getSchedulePredictions({
+  static Future<String?> getSchedulePredictions({
     required String apiKey,
     required BabyProfile profile,
     required List<SleepEntry> entries,
@@ -196,9 +195,8 @@ class NvidiaService {
           final choices = decoded['choices'] as List;
           final first = choices.first as Map<String, dynamic>;
           final message = first['message'] as Map<String, dynamic>;
-          final text = (message['content'] as String?) ?? '';
-
-          return _parseScheduleResponse(text, isPt: isPt);
+          final text = (message['content'] as String?)?.trim() ?? '';
+          if (text.isNotEmpty) return text;
         } catch (e) {
           debugPrint('NVIDIA schedule error model=$modelName: $e');
         }
@@ -207,6 +205,220 @@ class NvidiaService {
       debugPrint('NvidiaService schedule error: $e');
     }
     return null;
+  }
+
+  static String _buildSchedulePrompt({
+    required BabyProfile profile,
+    required List<SleepEntry> entries,
+    required bool isPt,
+  }) {
+    final ageStr = profile.getAgeString(isPt: isPt);
+    final history = _formatDatedHistory(entries, isPt: isPt);
+
+    if (isPt) {
+      return '''Você está analisando o diário de sono de um bebê.
+
+Perfil do bebê: Idade: $ageStr.
+
+Dados de sono recentes (mais recente primeiro):
+$history
+
+Seu objetivo NÃO é calcular médias sobre todo o conjunto de dados. Em vez disso, infira a rotina diária ATUAL do bebê, dando muito mais peso aos registros mais recentes (especialmente os últimos 7 dias). Dados mais antigos só devem ser usados quando os dados recentes forem insuficientes.
+
+Regras:
+- Identifique o horário diário mais provável.
+- Mescle horários semelhantes em um único horário representativo.
+- Ignore exceções e dias atípicos.
+- Se os horários de dormir ou acordar variarem ligeiramente, escolha o horário mais comum recente.
+- O resultado deve representar como é a rotina do bebê HOJE.
+
+Para o sono noturno:
+- Determine o primeiro horário de dormir à noite.
+- Determine o despertar final da manhã.
+- Exiba como um único período de sono (por exemplo: 19:00 → 06:00).
+- Ignore alimentações noturnas e breves despertares; presuma que o bebê permanece no sono noturno.
+
+Para as sonecas diurnas:
+- Detecte as sonecas típicas dos dados recentes.
+- Retorne os horários de início e fim representativos.
+- Inclua os períodos acordado entre as sonecas.
+
+Formate a saída EXATAMENTE assim:
+
+# 💤 Rotina Diária do Bebê
+
+## 🌙 Noite
+
+😴 19:00 → 06:00 — Dormindo
+
+---
+
+## 🌅 Manhã
+
+👶 06:00 → 08:20 — Acordado
+
+😴 08:20 → 10:20 — 1ª Soneca
+
+👶 10:20 → 11:45 — Acordado
+
+😴 11:45 → 13:10 — 2ª Soneca
+
+---
+
+## ☀️ Tarde
+
+👶 13:10 → 15:50 — Acordado
+
+😴 15:50 → 17:00 — 3ª Soneca
+
+👶 17:00 → 19:00 — Acordado
+
+---
+
+## 🌙 Noite
+
+😴 19:00 → 06:00 — Dormindo
+
+---
+
+## 📊 Resumo
+
+🌙 Sono Noturno: 19:00 → 06:00
+
+🌅 1ª Soneca: 08:20 → 10:20
+
+🍼 2ª Soneca: 11:45 → 13:10
+
+🌤️ 3ª Soneca: 15:50 → 17:00
+
+Janelas de vigília:
+• Manhã: 06:00 → 08:20
+• Meio-dia: 10:20 → 11:45
+• Tarde: 13:10 → 15:50
+• Noite: 17:00 → 19:00
+
+Importante:
+- NÃO simplesmente faça médias de todos os dias.
+- Priorize o comportamento recente.
+- Ignore anomalias.
+- Produza apenas um cronograma diário previsto.
+- Mantenha a saída concisa e visualmente formatada com emojis exatamente como o exemplo.''';
+    } else {
+      return '''You are analyzing a baby's sleep log.
+
+Baby profile: Age: $ageStr.
+
+Recent sleep data (newest first):
+$history
+
+Your goal is NOT to calculate averages over the entire dataset. Instead, infer the baby's CURRENT daily routine, giving much higher weight to the most recent records (especially the last 7 days). Older data should only be used when recent data is insufficient.
+
+Rules:
+- Identify the most likely daily schedule.
+- Merge similar times into a single representative schedule.
+- Ignore outliers and unusual days.
+- If sleep or wake times vary slightly, choose the most common recent time.
+- The result should represent what the baby's routine looks like TODAY.
+
+For the nighttime sleep:
+- Determine the first bedtime in the evening.
+- Determine the final morning wake-up.
+- Display it as a single sleep period (for example: 7:00 PM → 6:00 AM).
+- Ignore night feedings and brief awakenings; assume the baby remains in nighttime sleep.
+
+For daytime naps:
+- Detect the typical naps from the recent data.
+- Return their representative start and end times.
+- Include the awake periods between naps.
+
+Format the output exactly like this:
+
+# 💤 Baby Daily Routine
+
+## 🌙 Night
+
+😴 19:00 → 06:00 — Sleeping
+
+---
+
+## 🌅 Morning
+
+👶 06:00 → 08:20 — Awake
+
+😴 08:20 → 10:20 — 1st Nap
+
+👶 10:20 → 11:45 — Awake
+
+😴 11:45 → 13:10 — 2nd Nap
+
+---
+
+## ☀️ Afternoon
+
+👶 13:10 → 15:50 — Awake
+
+😴 15:50 → 17:00 — 3rd Nap
+
+👶 17:00 → 19:00 — Awake
+
+---
+
+## 🌙 Night
+
+😴 19:00 → 06:00 — Sleeping
+
+---
+
+## 📊 Summary
+
+🌙 Night Sleep: 19:00 → 06:00
+
+🌅 1st Nap: 08:20 → 10:20
+
+🍼 2nd Nap: 11:45 → 13:10
+
+🌤️ 3rd Nap: 15:50 → 17:00
+
+Wake windows:
+• Morning: 06:00 → 08:20
+• Midday: 10:20 → 11:45
+• Afternoon: 13:10 → 15:50
+• Evening: 17:00 → 19:00
+
+Important:
+- Do NOT simply average all days.
+- Prioritize recent behavior.
+- Ignore anomalies.
+- Produce only one predicted daily schedule.
+- Keep the output concise and visually formatted with emojis exactly like the example.''';
+    }
+  }
+
+  static String _formatDatedHistory(List<SleepEntry> entries, {required bool isPt}) {
+    if (entries.isEmpty) {
+      return isPt ? 'Nenhum registro ainda.' : 'No records yet.';
+    }
+    final recent = entries.take(50).toList();
+    final buf = StringBuffer();
+    for (final e in recent) {
+      final slept = e.slept != null ? _fmt(e.slept!) : '--:--';
+      final woke = e.wokeUp != null ? _fmt(e.wokeUp!) : '--:--';
+      final dateStr = e.slept != null
+          ? '${e.slept!.day.toString().padLeft(2, '0')}/${e.slept!.month.toString().padLeft(2, '0')}'
+          : '??/??';
+      final dur = (e.slept != null && e.wokeUp != null)
+          ? '${e.wokeUp!.difference(e.slept!).inHours}h${(e.wokeUp!.difference(e.slept!).inMinutes % 60).toString().padLeft(2, '0')}m'
+          : '?';
+      final period = e.isDay
+          ? (isPt ? 'soneca' : 'nap')
+          : (isPt ? 'noite' : 'night');
+      buf.writeln(
+        isPt
+            ? '- [$dateStr] Dormiu $slept → Acordou $woke ($dur) [$period]'
+            : '- [$dateStr] Slept $slept → Woke $woke ($dur) [$period]',
+      );
+    }
+    return buf.toString().trimRight();
   }
 
   static bool _isModelNotSupportedError(String message) {
@@ -318,71 +530,6 @@ Determine:
 
 RESPOND STRICTLY with valid JSON. DO NOT write any reasoning, do not explain your steps, and do not add any introductory or concluding text. The exact format (starting and ending with curly braces) MUST be:
 {"wakeUpTime":"HH:mm|null","wakeUpRationale":"1 sentence explanation","nextNapTime":"HH:mm - HH:mm|null","nextNapRationale":"1 sentence explanation","bedtimeRoutineStart":"HH:mm|null","bedtimeRationale":"1 sentence explanation"}''';
-    }
-  }
-
-  static String _buildSchedulePrompt({
-    required BabyProfile profile,
-    required List<SleepEntry> entries,
-    required bool isPt,
-  }) {
-    final rag = SleepKnowledgeBase.getContext(profile.birthdate, isPt: isPt);
-    final ageStr = profile.getAgeString(isPt: isPt);
-    final targetBed = profile.targetBedtimeString;
-    final history = _formatHistory(entries, isPt: isPt);
-
-    if (isPt) {
-      return '''Você é um especialista em sono infantil.
-PERFIL: Idade: $ageStr. Dormir: $targetBed.
-DIRETRIZES:
-$rag
-HISTÓRICO RECENTE:
-$history
-
-TAREFA:
-Crie o cronograma ideal de sono para o DIA INTEIRO (hoje/amanhã), começando pelo despertar da manhã até o sono noturno.
-Use as médias reais de duração do histórico, e as janelas de vigília recomendadas para a idade.
-Divida nos períodos exatos: "morning", "midday", "afternoon", "evening", "night".
-
-RESPONDA ESTRITAMENTE EM JSON VÁLIDO. Não escreva texto fora do JSON. Formato:
-{
-  "predictions": [
-    {
-      "period": "morning",
-      "periodName": "🌅 Manhã",
-      "windows": [
-        {"isAwake": true, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Explicação curta"},
-        {"isAwake": false, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Explicação curta"}
-      ]
-    }
-  ]
-}''';
-    } else {
-      return '''You are a pediatric sleep expert.
-PROFILE: Age: $ageStr. Target Bedtime: $targetBed.
-GUIDELINES:
-$rag
-RECENT HISTORY:
-$history
-
-TASK:
-Create the ideal full-day sleep schedule, starting from the morning wake up to the night sleep.
-Use actual averages from the history, and age-appropriate wake windows.
-Divide into periods exactly: "morning", "midday", "afternoon", "evening", "night".
-
-RESPOND STRICTLY IN VALID JSON. No text outside JSON. Format:
-{
-  "predictions": [
-    {
-      "period": "morning",
-      "periodName": "🌅 Morning",
-      "windows": [
-        {"isAwake": true, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Short explanation"},
-        {"isAwake": false, "startTime": "HH:mm", "endTime": "HH:mm", "rationale": "Short explanation"}
-      ]
-    }
-  ]
-}''';
     }
   }
 
@@ -564,40 +711,6 @@ RESPOND STRICTLY IN VALID JSON. No text outside JSON. Format:
         .replaceAll(RegExp(r'\bwake\s*windows\b', caseSensitive: false), 'janelas de vigília');
   }
 
-  static List<SleepWindowPrediction>? _parseScheduleResponse(String raw, {required bool isPt}) {
-    String cleaned = raw.trim();
-    cleaned = cleaned.replaceAll(RegExp(r'```[a-zA-Z]*\n?'), '').trim();
-    final jsonStart = cleaned.indexOf('{');
-    final jsonEnd = cleaned.lastIndexOf('}');
-    if (jsonStart != -1 && jsonEnd > jsonStart) {
-      try {
-        final map = jsonDecode(cleaned.substring(jsonStart, jsonEnd + 1))
-            as Map<String, dynamic>;
-        final list = map['predictions'] as List;
-        return list.map((p) {
-          final pMap = p as Map<String, dynamic>;
-          final wList = pMap['windows'] as List;
-          final windows = wList.map((w) {
-            final wMap = w as Map<String, dynamic>;
-            return SleepWindow(
-              isAwake: wMap['isAwake'] as bool? ?? true,
-              startTime: wMap['startTime'] as String? ?? '--:--',
-              endTime: wMap['endTime'] as String?,
-              rationale: wMap['rationale'] as String?,
-            );
-          }).toList();
-          return SleepWindowPrediction(
-            period: pMap['period'] as String? ?? 'day',
-            periodName: pMap['periodName'] as String? ?? 'Period',
-            windows: windows,
-          );
-        }).toList();
-      } catch (e) {
-        debugPrint('AI schedule parse error: $e');
-      }
-    }
-    return null;
-  }
 }
 
 // Backward-compatible adapter for existing call sites.
@@ -620,7 +733,7 @@ class GeminiService {
     );
   }
 
-  static Future<List<SleepWindowPrediction>?> getSchedulePredictions({
+  static Future<String?> getSchedulePredictions({
     required String apiKey,
     required BabyProfile profile,
     required List<SleepEntry> entries,
