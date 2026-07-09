@@ -113,11 +113,13 @@ class _AuthScreenState extends State<AuthScreen> {
         await Provider.of<AppProvider>(context, listen: false)
             .loadSettingsFromCurrentUser();
       }
-    } on FirebaseAuthException {
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Google sign-in FirebaseAuthException: ${e.code} ${e.message}');
       setState(() {
         _errorMessage = strings.authGenericError;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Google sign-in error: $e');
       setState(() {
         _errorMessage = strings.authGenericError;
       });

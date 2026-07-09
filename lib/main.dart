@@ -25,7 +25,7 @@ void main() async {
   // currentUser below — right after initialize(), the native SDK may not
   // have finished loading it from disk yet, which would wrongly look
   // like the user is logged out on a cold start.
-  await FirebaseService().authStateChanges().first;
+  await FirebaseService().waitForAuthReady();
 
   // Initialize local notifications
   await NotificationService.initialize();

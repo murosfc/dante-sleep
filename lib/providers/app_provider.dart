@@ -28,6 +28,23 @@ class AppProvider with ChangeNotifier {
   bool _isMigratingData = false;
   String? _sleepWindowPredictions = '';
   Timer? _aiRefreshTimer;
+  Timer? _liveClockTimer;
+
+  AppProvider() {
+    // Ticks the UI once a second so the live sleep/awake counter (with
+    // seconds) on the most recent card keeps advancing until a new record
+    // closes the cycle.
+    _liveClockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (entries.isNotEmpty) notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _liveClockTimer?.cancel();
+    _aiRefreshTimer?.cancel();
+    super.dispose();
+  }
 
   void _scheduleAiRefresh() {
     _aiRefreshTimer?.cancel();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,6 +16,17 @@ class FirebaseService {
   FirebaseFirestore? _firestore;
   FirebaseAuth? _auth;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  // FirebaseAuth.authStateChanges() is a single shared broadcast stream that
+  // does not replay its last event to late subscribers. Both main.dart (at
+  // startup) and AuthGate (in the widget tree) subscribe to it, so whichever
+  // one subscribes second can miss the one-time "session restored" event and
+  // wrongly conclude the user is logged out. Cache the latest value here and
+  // replay it to every new subscriber via Stream.multi.
+  User? _cachedAuthUser;
+  bool _authStateReady = false;
+  final StreamController<User?> _authStateController =
+      StreamController<User?>.broadcast();
 
   FirebaseFirestore get firestore {
     if (_firestore == null) {
@@ -36,10 +48,37 @@ class FirebaseService {
     );
     _firestore = FirebaseFirestore.instance;
     _auth = FirebaseAuth.instance;
+
+    _auth!.authStateChanges().listen((user) {
+      _cachedAuthUser = user;
+      _authStateReady = true;
+      _authStateController.add(user);
+    });
   }
 
+  /// Unlike the plain broadcast stream from FirebaseAuth, this replays the
+  /// most recent auth state to every new subscriber, so it's safe for
+  /// multiple independent listeners (startup gate, AuthGate, etc.) to each
+  /// subscribe without racing to see the same "session restored" event.
   Stream<User?> authStateChanges() {
-    return auth.authStateChanges();
+    return Stream<User?>.multi((controller) {
+      if (_authStateReady) {
+        controller.add(_cachedAuthUser);
+      }
+      final subscription = _authStateController.stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = subscription.cancel;
+    });
+  }
+
+  /// Resolves once the persisted session (if any) has been restored by the
+  /// native SDK, without racing multiple subscribers for the first event.
+  Future<User?> waitForAuthReady() {
+    if (_authStateReady) return Future.value(_cachedAuthUser);
+    return authStateChanges().first;
   }
 
   Future<void> _ensureUserDocument(User user) async {

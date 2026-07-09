@@ -229,13 +229,19 @@ class MainScreen extends StatelessWidget {
                         itemCount: provider.entries.length,
                         itemBuilder: (context, index) {
                           final entry = provider.entries[index];
+                          final liveNow = index == 0 ? DateTime.now() : null;
+                          final isSleepLive =
+                              index == 0 && entry.slept != null && entry.wokeUp == null;
+                          final isAwakeLive = index == 0 && entry.wokeUp != null;
                           final sleepTime = entry.getSleepTime(
                             provider.entries,
                             index,
+                            now: liveNow,
                           );
                           final awakeTime = entry.getAwakeTime(
                             provider.entries,
                             index,
+                            now: liveNow,
                           );
 
                           return Card(
@@ -408,6 +414,7 @@ class MainScreen extends StatelessWidget {
                                           isDay,
                                           textColor,
                                           subtitleColor,
+                                          isLive: isSleepLive,
                                         ),
                                       ),
                                       const SizedBox(width: 12),
@@ -418,6 +425,7 @@ class MainScreen extends StatelessWidget {
                                           isDay,
                                           textColor,
                                           subtitleColor,
+                                          isLive: isAwakeLive,
                                         ),
                                       ),
                                     ],
@@ -638,8 +646,14 @@ class MainScreen extends StatelessWidget {
     String value,
     bool isDay,
     Color textColor,
-    Color subtitleColor,
-  ) {
+    Color subtitleColor, {
+    bool isLive = false,
+  }) {
+    // Subtle amber for dark mode, a warmer honey/orange for light mode,
+    // so the in-progress counter stands out from frozen values.
+    final liveColor = isDay
+        ? const Color(0xFFB2670C)
+        : const Color(0xFFE8C873);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -663,7 +677,7 @@ class MainScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: textColor,
+              color: isLive ? liveColor : textColor,
             ),
           ),
         ],

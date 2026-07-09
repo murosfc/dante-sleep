@@ -106,22 +106,52 @@ class SleepEntry {
     ).format(slept!);
   }
 
-  String getSleepTime(List<SleepEntry> allEntries, int index) {
-    if (wokeUp == null || slept == null) return '-';
-    Duration diff = wokeUp!.difference(slept!);
-    if (diff.isNegative) return '-';
-    return '${diff.inHours}:${(diff.inMinutes % 60).toString().padLeft(2, '0')}';
+  /// Formats a duration as `H:MM`, or `H:MM:SS` while it's still live
+  /// (ticking), so it's clear at a glance whether a value is frozen.
+  static String _formatDuration(Duration diff, {required bool live}) {
+    final hours = diff.inHours;
+    final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
+    if (!live) return '$hours:$minutes';
+    final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
   }
 
-  String getAwakeTime(List<SleepEntry> allEntries, int index) {
+  /// Time spent sleeping. If [now] is provided and this entry's sleep
+  /// hasn't been closed yet (no [wokeUp]), returns the live elapsed time
+  /// (with seconds) instead of '-', so the UI can show it advancing until
+  /// a new record closes the cycle — at which point it freezes to `H:MM`.
+  String getSleepTime(List<SleepEntry> allEntries, int index, {DateTime? now}) {
+    if (slept == null) return '-';
+    if (wokeUp == null) {
+      if (now == null) return '-';
+      Duration diff = now.difference(slept!);
+      if (diff.isNegative) return '-';
+      return _formatDuration(diff, live: true);
+    }
+    Duration diff = wokeUp!.difference(slept!);
+    if (diff.isNegative) return '-';
+    return _formatDuration(diff, live: false);
+  }
+
+  /// Time spent awake. If [now] is provided and this entry hasn't been
+  /// followed by a newer sleep record yet, returns the live elapsed time
+  /// (with seconds) instead of '-', so the UI can show it advancing until
+  /// a new record closes the cycle — at which point it freezes to `H:MM`.
+  String getAwakeTime(List<SleepEntry> allEntries, int index, {DateTime? now}) {
     if (wokeUp == null) return '-';
     if (index - 1 >= 0) {
       SleepEntry newerEntry = allEntries[index - 1];
       if (newerEntry.slept != null) {
         Duration diff = newerEntry.slept!.difference(wokeUp!);
         if (!diff.isNegative) {
-          return '${diff.inHours}:${(diff.inMinutes % 60).toString().padLeft(2, '0')}';
+          return _formatDuration(diff, live: false);
         }
+      }
+    }
+    if (now != null) {
+      Duration diff = now.difference(wokeUp!);
+      if (!diff.isNegative) {
+        return _formatDuration(diff, live: true);
       }
     }
     return '-';

@@ -58,6 +58,14 @@
           }
         },
         {
+          "client_id": "68587916563-o7l5gtfmfrmnvf13vd27mrgro7r89oaf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.dante_sleep",
+            "certificate_hash": "53058a96009a110b39a1a96b629cc729be008614"
+          }
+        },
+        {
           "client_id": "68587916563-lt5s5th3k82a3ofcoj24iru670dehjp4.apps.googleusercontent.com",
           "client_type": 3
         }
