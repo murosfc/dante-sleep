@@ -5,6 +5,13 @@ import 'package:intl/intl.dart';
 
 class SleepEntry {
   String? firestoreId; // ID do documento no Firestore
+
+  // Stable client-side identity, independent of firestoreId. Lets the sync
+  // queue correlate a queued 'update' back to this exact entry even when it
+  // was created offline and doesn't have a firestoreId yet — without this,
+  // an update queued before its paired create resolves permanently loses
+  // track of which document to patch once the create finally syncs.
+  final String localId;
   DateTime? wokeUp;
   DateTime? slept;
   bool isDay;
@@ -15,8 +22,13 @@ class SleepEntry {
   DateTime? createdAt;
   DateTime? updatedAt;
 
+  static int _localIdCounter = 0;
+  static String _generateLocalId() =>
+      '${DateTime.now().microsecondsSinceEpoch}_${_localIdCounter++}';
+
   SleepEntry({
     this.firestoreId,
+    String? localId,
     this.wokeUp,
     this.slept,
     this.isDay = true,
@@ -26,7 +38,7 @@ class SleepEntry {
     this.syncStatus = 'synced',
     this.createdAt,
     this.updatedAt,
-  });
+  }) : localId = localId ?? _generateLocalId();
 
   Map<String, dynamic> toJson() => {
     'wokeUp': wokeUp?.toIso8601String(),

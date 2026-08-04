@@ -272,6 +272,13 @@ class MainScreen extends StatelessWidget {
                                       children: [
                                         Expanded(
                                           child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () => _editDateTime(
+                                              context,
+                                              provider,
+                                              index,
+                                              false,
+                                            ),
                                             onLongPress: () => _editDateTime(
                                               context,
                                               provider,
@@ -292,6 +299,13 @@ class MainScreen extends StatelessWidget {
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () => _editDateTime(
+                                              context,
+                                              provider,
+                                              index,
+                                              true,
+                                            ),
                                             onLongPress: () => _editDateTime(
                                               context,
                                               provider,
@@ -517,54 +531,84 @@ class MainScreen extends StatelessWidget {
     );
   }
 
+  static final DateTime _editableFirstDate = DateTime(2020);
+  static final DateTime _editableLastDate = DateTime(2030);
+
+  // Clamps whatever is stored (which may be null, or a garbage value left
+  // behind by a corrupted/partial write) into the date picker's supported
+  // range. Without this, a record with an out-of-range date would make
+  // showDatePicker's initialDate assertion fail and the dialog would never
+  // appear — from the user's perspective, editing simply "doesn't open".
+  DateTime _clampToEditableRange(DateTime value) {
+    if (value.isBefore(_editableFirstDate)) return _editableFirstDate;
+    if (value.isAfter(_editableLastDate)) return _editableLastDate;
+    return value;
+  }
+
   void _editDateTime(
     BuildContext context,
     AppProvider provider,
     int index,
     bool isWokeUp,
   ) async {
-    DateTime? current = isWokeUp
-        ? provider.entries[index].wokeUp
-        : provider.entries[index].slept;
-    current ??=
-        provider.entries[index].slept ??
-        provider.entries[index].wokeUp ??
-        DateTime.now();
-    DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: current,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (!context.mounted) return;
-    if (pickedDate != null) {
-      TimeOfDay? pickedTime = await showTimePicker(
+    try {
+      if (index < 0 || index >= provider.entries.length) return;
+      DateTime? current = isWokeUp
+          ? provider.entries[index].wokeUp
+          : provider.entries[index].slept;
+      current ??=
+          provider.entries[index].slept ??
+          provider.entries[index].wokeUp ??
+          DateTime.now();
+      current = _clampToEditableRange(current);
+      DateTime? pickedDate = await showDatePicker(
         context: context,
-        initialTime: TimeOfDay.fromDateTime(current),
-        builder: (context, child) {
-          return MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              alwaysUse24HourFormat: provider.is24Hour,
-            ),
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
+        initialDate: current,
+        firstDate: _editableFirstDate,
+        lastDate: _editableLastDate,
       );
       if (!context.mounted) return;
-      if (pickedTime != null) {
-        DateTime newDateTime = DateTime(
-          pickedDate.year,
-          pickedDate.month,
-          pickedDate.day,
-          pickedTime.hour,
-          pickedTime.minute,
+      if (pickedDate != null) {
+        TimeOfDay? pickedTime = await showTimePicker(
+          context: context,
+          initialTime: TimeOfDay.fromDateTime(current),
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                alwaysUse24HourFormat: provider.is24Hour,
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
         );
-        if (isWokeUp) {
-          provider.editWokeUp(index, newDateTime);
-        } else {
-          provider.editSlept(index, newDateTime);
+        if (!context.mounted) return;
+        if (pickedTime != null) {
+          DateTime newDateTime = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+          if (isWokeUp) {
+            provider.editWokeUp(index, newDateTime);
+          } else {
+            provider.editSlept(index, newDateTime);
+          }
         }
       }
+    } catch (e) {
+      if (!context.mounted) return;
+      final isPt = provider.locale.languageCode == 'pt';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isPt
+                ? 'Não foi possível abrir a edição deste horário.'
+                : 'Could not open the editor for this time.',
+          ),
+        ),
+      );
     }
   }
 

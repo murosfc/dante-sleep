@@ -1004,11 +1004,40 @@ class AppProvider with ChangeNotifier {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       operation: operation,
       entryId: entry.firestoreId ?? '',
+      localEntryId: entry.localId,
       data: entry.toFirestore(),
       createdAt: DateTime.now(),
     );
     _syncQueue.add(item);
     _saveSyncQueue();
+  }
+
+  SleepEntry? _findEntryByLocalId(String? localId) {
+    if (localId == null) return null;
+    for (final e in entries) {
+      if (e.localId == localId) return e;
+    }
+    return null;
+  }
+
+  /// Resolves the [SleepEntry] a queue item refers to. Prefers the stable
+  /// [SyncQueueItem.localEntryId]; falls back to matching on the queued
+  /// payload's `createdAt` for items persisted before localId tracking
+  /// existed (e.g. an 'update' stranded offline by the old bug) — without
+  /// this fallback, those old stuck items would stay unresolved forever
+  /// even after being reset to 'pending'.
+  SleepEntry? _resolveEntryForQueueItem(SyncQueueItem item) {
+    final byLocalId = _findEntryByLocalId(item.localEntryId);
+    if (byLocalId != null) return byLocalId;
+
+    final createdAtRaw = item.data['createdAt'];
+    if (createdAtRaw is! String) return null;
+    final createdAt = DateTime.tryParse(createdAtRaw);
+    if (createdAt == null) return null;
+    for (final e in entries) {
+      if (e.createdAt == createdAt) return e;
+    }
+    return null;
   }
 
   Future<void> _syncToFirestore() async {
@@ -1029,25 +1058,34 @@ class AppProvider with ChangeNotifier {
                 item.data,
               );
               // Update local entry with Firebase ID
-              final createdAt = _asDateTime(item.data['createdAt']);
-              final entryIndex = entries.indexWhere(
-                (e) => e.firestoreId == null && e.createdAt == createdAt,
-              );
-              if (entryIndex >= 0) {
-                entries[entryIndex].firestoreId = docId;
+              final entry = _resolveEntryForQueueItem(item);
+              if (entry != null) {
+                entry.firestoreId = docId;
               }
               item.entryId = docId;
               item.status = 'synced';
               break;
 
             case 'update':
-              if (item.entryId.isNotEmpty) {
+              // entryId may still be empty here if this update was queued
+              // before its paired 'create' finished syncing (e.g. while
+              // offline). Resolve it from the live entry instead of trusting
+              // the stale snapshot taken at queue time.
+              final resolvedId = item.entryId.isNotEmpty
+                  ? item.entryId
+                  : _resolveEntryForQueueItem(item)?.firestoreId;
+              if (resolvedId != null && resolvedId.isNotEmpty) {
                 await FirebaseService().updateSleepEntry(
                   user.uid,
-                  item.entryId,
+                  resolvedId,
                   item.data,
                 );
+                item.entryId = resolvedId;
                 item.status = 'synced';
+              } else {
+                // Paired create hasn't resolved an ID yet — retry on the
+                // next sync pass instead of getting stuck at 'syncing'.
+                item.status = 'pending';
               }
               break;
 
@@ -1071,8 +1109,18 @@ class AppProvider with ChangeNotifier {
       _syncQueue.removeWhere((i) => i.status == 'synced');
       _saveSyncQueue();
 
-      // Mark entries as synced
+      // Mark entries as synced — but only once no queue item still targets
+      // them, so an entry with a deferred/failed update doesn't get flagged
+      // "synced" while its latest edit hasn't actually reached Firestore.
       for (var entry in entries.where((e) => e.syncStatus == 'pending')) {
+        final stillQueued = _syncQueue.any(
+          (i) =>
+              i.status != 'synced' &&
+              (i.localEntryId == entry.localId ||
+                  (entry.firestoreId != null &&
+                      i.entryId == entry.firestoreId)),
+        );
+        if (stillQueued) continue;
         entry.syncStatus = 'synced';
       }
       notifyListeners();
@@ -1102,6 +1150,26 @@ class AppProvider with ChangeNotifier {
         _syncQueue = list
             .map((e) => SyncQueueItem.fromJson(Map<String, dynamic>.from(e)))
             .toList();
+
+        // 'syncing' is only ever meant to be a transient in-memory marker
+        // while a sync attempt is in flight. Finding it on a freshly loaded
+        // queue means a previous attempt was interrupted (app killed) or —
+        // before this fix — an 'update' that got permanently stranded
+        // because its entryId was still empty when it was processed. Reset
+        // it to 'pending' so it's retried instead of abandoned forever;
+        // this is what lets a previously-lost "Acordou" edit finally reach
+        // Firestore once connectivity is back.
+        int healedCount = 0;
+        for (final item in _syncQueue) {
+          if (item.status == 'syncing') {
+            item.status = 'pending';
+            healedCount++;
+          }
+        }
+        if (healedCount > 0) {
+          debugPrint('Recovered $healedCount stuck sync queue item(s).');
+          await _saveSyncQueue();
+        }
       }
     } catch (e) {
       debugPrint('Error loading sync queue: $e');
@@ -1129,7 +1197,7 @@ class AppProvider with ChangeNotifier {
 
       // Check if already migrated
       final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool('entries_migrated_$user.uid') ?? false) return;
+      if (prefs.getBool('entries_migrated_${user.uid}') ?? false) return;
 
       _isMigratingData = true;
 
@@ -1196,10 +1264,4 @@ class AppProvider with ChangeNotifier {
     }
   }
 
-  DateTime? _asDateTime(dynamic value) {
-    if (value == null) return null;
-    if (value is DateTime) return value;
-    if (value is String) return DateTime.tryParse(value);
-    return null;
-  }
 }
