@@ -761,19 +761,15 @@ class AppProvider with ChangeNotifier {
     List<List<String>> rows = [headers];
     for (int i = 0; i < entries.length; i++) {
       SleepEntry e = entries[i];
+      // ISO 8601 format (locale-independent) so dates parse reliably
+      // when the CSV is opened in spreadsheet apps or fed to other tools.
       String wokeUpStr = '';
       if (e.wokeUp != null) {
-        wokeUpStr = DateFormat(
-          is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a',
-          locale.languageCode == 'pt' ? 'pt_BR' : 'en',
-        ).format(e.wokeUp!);
+        wokeUpStr = DateFormat('yyyy-MM-dd HH:mm').format(e.wokeUp!);
       }
       String sleptStr = '';
       if (e.slept != null) {
-        sleptStr = DateFormat(
-          is24Hour ? 'dd-MMM yyyy HH:mm' : 'dd-MMM yyyy h:mm a',
-          locale.languageCode == 'pt' ? 'pt_BR' : 'en',
-        ).format(e.slept!);
+        sleptStr = DateFormat('yyyy-MM-dd HH:mm').format(e.slept!);
       }
       rows.add([
         e.getSleepTime(entries, i),
@@ -815,7 +811,9 @@ class AppProvider with ChangeNotifier {
     String filename = 'dante_sleep_$timestamp.csv';
 
     File file = File('${downloadsDir!.path}/$filename');
-    await file.writeAsString(csv);
+    // Prepend UTF-8 BOM so spreadsheet apps (Excel) detect the encoding
+    // correctly and accented characters (e.g. "Não") render properly.
+    await file.writeAsBytes([0xEF, 0xBB, 0xBF, ...utf8.encode(csv)]);
     debugPrint('Exported to ${file.path}');
     return filename;
   }
