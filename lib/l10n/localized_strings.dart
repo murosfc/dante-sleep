@@ -343,6 +343,55 @@ class LocalizedStrings {
         : AppStrings.deleteButton;
   }
 
+  String get shareButton {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.shareButton
+        : AppStrings.shareButton;
+  }
+
+  String get estimatedWakeUp {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.estimatedWakeUp
+        : AppStrings.estimatedWakeUp;
+  }
+
+  String get estimatedNextSleep {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.estimatedNextSleep
+        : AppStrings.estimatedNextSleep;
+  }
+
+  String get bridgeNapQuestionTitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.bridgeNapQuestionTitle
+        : AppStrings.bridgeNapQuestionTitle;
+  }
+
+  String get bridgeNapQuestionBody {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.bridgeNapQuestionBody
+        : AppStrings.bridgeNapQuestionBody;
+  }
+
+  String get yesLabel {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.yesLabel
+        : AppStrings.yesLabel;
+  }
+
+  String get noLabel {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.noLabel
+        : AppStrings.noLabel;
+  }
+
   String get cancel {
     final locale = Localizations.localeOf(context);
     return locale.languageCode == 'pt'

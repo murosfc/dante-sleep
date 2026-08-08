@@ -28,6 +28,14 @@ class AppStrings {
 
   // Buttons
   static const String deleteButton = 'Delete Card';
+  static const String shareButton = 'Share';
+  static const String estimatedWakeUp = 'Should wake up starting from';
+  static const String estimatedNextSleep = 'Should sleep again starting from';
+  static const String bridgeNapQuestionTitle = 'Bridge nap?';
+  static const String bridgeNapQuestionBody =
+      'This nap started between 4 PM and 6 PM. Is it a short bridge nap (cat nap)?';
+  static const String yesLabel = 'Yes';
+  static const String noLabel = 'No';
   static const String cancel = 'Cancel';
   static const String confirm = 'Confirm';
   static const String ok = 'OK';
@@ -148,6 +156,14 @@ class AppStringsPortuguese {
 
   // Buttons
   static const String deleteButton = 'Deletar Card';
+  static const String shareButton = 'Compartilhar';
+  static const String estimatedWakeUp = 'Deverá acordar a partir de';
+  static const String estimatedNextSleep = 'Deverá dormir novamente a partir de';
+  static const String bridgeNapQuestionTitle = 'Soneca ponte?';
+  static const String bridgeNapQuestionBody =
+      'Essa soneca começou entre 16h e 18h. É uma soneca ponte curta (cat nap)?';
+  static const String yesLabel = 'Sim';
+  static const String noLabel = 'Não';
   static const String cancel = 'Cancelar';
   static const String confirm = 'Confirmar';
   static const String ok = 'OK';

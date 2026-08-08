@@ -24,6 +24,62 @@ class SleepKnowledgeBase {
     return (minHours: 10.0, maxHours: 11.5);
   }
 
+  /// Returns the age-appropriate wake window (time between wake-up and the
+  /// next nap) used as a quick local estimate, without calling the AI.
+  static ({double minHours, double maxHours}) getWakeWindowHours(
+    DateTime? birthdate,
+  ) {
+    if (birthdate == null) {
+      return (minHours: 2.0, maxHours: 3.5);
+    }
+
+    final weeks = DateTime.now().difference(birthdate).inDays ~/ 7;
+    if (weeks < 6) return (minHours: 0.75, maxHours: 1.0);
+    if (weeks < 12) return (minHours: 1.0, maxHours: 1.5);
+    if (weeks < 20) return (minHours: 1.5, maxHours: 2.0);
+    if (weeks < 28) return (minHours: 2.0, maxHours: 2.5);
+    if (weeks < 40) return (minHours: 2.5, maxHours: 3.5);
+    if (weeks < 52) return (minHours: 3.0, maxHours: 3.5);
+    if (weeks < 70) return (minHours: 3.0, maxHours: 4.5);
+    if (weeks < 104) return (minHours: 4.0, maxHours: 6.0);
+    return (minHours: 5.0, maxHours: 7.0);
+  }
+
+  /// Returns the age-appropriate typical nap duration, used as a quick
+  /// local estimate (e.g. expected wake-up time while a nap is ongoing),
+  /// without calling the AI.
+  static ({double minHours, double maxHours}) getNapDurationHours(
+    DateTime? birthdate,
+  ) {
+    if (birthdate == null) {
+      return (minHours: 1.0, maxHours: 2.0);
+    }
+
+    final weeks = DateTime.now().difference(birthdate).inDays ~/ 7;
+    if (weeks < 6) return (minHours: 0.5, maxHours: 1.5);
+    if (weeks < 12) return (minHours: 0.75, maxHours: 1.5);
+    if (weeks < 20) return (minHours: 1.0, maxHours: 1.5);
+    if (weeks < 28) return (minHours: 1.0, maxHours: 2.0);
+    if (weeks < 40) return (minHours: 1.0, maxHours: 2.0);
+    if (weeks < 52) return (minHours: 1.0, maxHours: 2.0);
+    if (weeks < 70) return (minHours: 1.0, maxHours: 2.5);
+    if (weeks < 104) return (minHours: 1.5, maxHours: 2.0);
+    return (minHours: 1.0, maxHours: 2.0);
+  }
+
+  /// Formats an hour range in the compact `2h30–3h30` style used
+  /// throughout the guideline text below.
+  static String formatHoursRange(double minHours, double maxHours) {
+    String fmt(double hours) {
+      final totalMinutes = (hours * 60).round();
+      final h = totalMinutes ~/ 60;
+      final m = totalMinutes % 60;
+      return m == 0 ? '${h}h' : '${h}h$m';
+    }
+
+    return '${fmt(minHours)}–${fmt(maxHours)}';
+  }
+
   static String getContext(DateTime? birthdate, {bool isPt = true}) {
     String context;
     if (birthdate == null) {

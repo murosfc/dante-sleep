@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../knowledge/sleep_knowledge_base.dart';
+
 class BabyProfile {
   String? name;
   DateTime? birthdate;
@@ -10,6 +12,16 @@ class BabyProfile {
   int? targetBedtimeHour;
   int? targetBedtimeMinute;
 
+  // Custom wake window (time awake between waking up and the next nap),
+  // in minutes. Null means "use the age-based guideline as fallback".
+  int? wakeWindowMinMinutes;
+  int? wakeWindowMaxMinutes;
+
+  // Custom nap duration (how long a nap typically lasts), in minutes.
+  // Null means "use the age-based guideline as fallback".
+  int? napDurationMinMinutes;
+  int? napDurationMaxMinutes;
+
   BabyProfile({
     this.name,
     this.birthdate,
@@ -19,7 +31,51 @@ class BabyProfile {
     this.nightRoutineMinutes = 30,
     this.targetBedtimeHour,
     this.targetBedtimeMinute,
+    this.wakeWindowMinMinutes,
+    this.wakeWindowMaxMinutes,
+    this.napDurationMinMinutes,
+    this.napDurationMaxMinutes,
   });
+
+  /// Wake window in hours, using the custom value if set, otherwise the
+  /// age-based guideline.
+  ({double minHours, double maxHours}) get effectiveWakeWindowHours {
+    if (wakeWindowMinMinutes != null && wakeWindowMaxMinutes != null) {
+      return (
+        minHours: wakeWindowMinMinutes! / 60.0,
+        maxHours: wakeWindowMaxMinutes! / 60.0,
+      );
+    }
+    return SleepKnowledgeBase.getWakeWindowHours(birthdate);
+  }
+
+  /// Typical nap duration in hours, using the custom value if set,
+  /// otherwise the age-based guideline.
+  ({double minHours, double maxHours}) get effectiveNapDurationHours {
+    if (napDurationMinMinutes != null && napDurationMaxMinutes != null) {
+      return (
+        minHours: napDurationMinMinutes! / 60.0,
+        maxHours: napDurationMaxMinutes! / 60.0,
+      );
+    }
+    return SleepKnowledgeBase.getNapDurationHours(birthdate);
+  }
+
+  /// Same as [effectiveWakeWindowHours] but tolerant of a null profile,
+  /// so call sites don't need to null-check before falling back.
+  static ({double minHours, double maxHours}) wakeWindowHoursFor(
+    BabyProfile? profile,
+  ) =>
+      profile?.effectiveWakeWindowHours ??
+      SleepKnowledgeBase.getWakeWindowHours(null);
+
+  /// Same as [effectiveNapDurationHours] but tolerant of a null profile,
+  /// so call sites don't need to null-check before falling back.
+  static ({double minHours, double maxHours}) napDurationHoursFor(
+    BabyProfile? profile,
+  ) =>
+      profile?.effectiveNapDurationHours ??
+      SleepKnowledgeBase.getNapDurationHours(null);
 
   String get targetBedtimeString {
     if (targetBedtimeHour == null || targetBedtimeMinute == null) return '--:--';
@@ -87,6 +143,10 @@ class BabyProfile {
         'nightRoutineMinutes': nightRoutineMinutes,
         'targetBedtimeHour': targetBedtimeHour,
         'targetBedtimeMinute': targetBedtimeMinute,
+        'wakeWindowMinMinutes': wakeWindowMinMinutes,
+        'wakeWindowMaxMinutes': wakeWindowMaxMinutes,
+        'napDurationMinMinutes': napDurationMinMinutes,
+        'napDurationMaxMinutes': napDurationMaxMinutes,
       };
 
   static DateTime? _parseFirestoreDate(dynamic value) {
@@ -126,5 +186,9 @@ class BabyProfile {
         nightRoutineMinutes: _parseInt(data['nightRoutineMinutes'], 30),
         targetBedtimeHour: _parseNullableInt(data['targetBedtimeHour']),
         targetBedtimeMinute: _parseNullableInt(data['targetBedtimeMinute']),
+        wakeWindowMinMinutes: _parseNullableInt(data['wakeWindowMinMinutes']),
+        wakeWindowMaxMinutes: _parseNullableInt(data['wakeWindowMaxMinutes']),
+        napDurationMinMinutes: _parseNullableInt(data['napDurationMinMinutes']),
+        napDurationMaxMinutes: _parseNullableInt(data['napDurationMaxMinutes']),
       );
 }

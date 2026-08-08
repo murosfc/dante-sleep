@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../l10n/localized_strings.dart';
+import '../models/baby_profile.dart';
+import '../models/entry.dart';
 import '../providers/app_provider.dart';
 import '../widgets/settings_bottom_sheet.dart';
 import 'analytics_screen.dart';
@@ -399,9 +403,21 @@ class MainScreen extends StatelessWidget {
                                       onSelected: (value) {
                                         if (value == 'delete') {
                                           _deleteEntryConfirm(context, provider, strings, index);
+                                        } else if (value == 'share') {
+                                          _shareEntry(context, provider, strings, entry);
                                         }
                                       },
                                       itemBuilder: (context) => [
+                                        PopupMenuItem(
+                                          value: 'share',
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.share_outlined, size: 20),
+                                              const SizedBox(width: 8),
+                                              Text(strings.shareButton),
+                                            ],
+                                          ),
+                                        ),
                                         PopupMenuItem(
                                           value: 'delete',
                                           child: Row(
@@ -630,6 +646,65 @@ class MainScreen extends StatelessWidget {
       final newTime = DateTime(baseDate.year, baseDate.month, baseDate.day, pickedTime.hour, pickedTime.minute);
       provider.editBottleTime(index, newTime);
     }
+  }
+
+  Future<void> _shareEntry(BuildContext context, AppProvider provider, LocalizedStrings strings, SleepEntry entry) async {
+    final slept = entry.slept;
+    final wokeUp = entry.wokeUp;
+    final pattern = provider.is24Hour ? 'HH:mm' : 'h:mm a';
+    final localeName = provider.locale.languageCode == 'pt' ? 'pt_BR' : 'en';
+    final fmt = DateFormat(pattern, localeName);
+
+    final buffer = StringBuffer();
+
+    if (wokeUp == null && slept != null) {
+      buffer.writeln('${strings.dormiu}: ${fmt.format(slept)}');
+
+      Duration wakeOffset;
+      if (slept.hour >= 16 && slept.hour < 18) {
+        final isBridgeNap = await _askBridgeNap(context, strings);
+        if (!context.mounted || isBridgeNap == null) return;
+        wakeOffset = isBridgeNap
+            ? const Duration(minutes: 30)
+            : _durationFromMinHours(BabyProfile.napDurationHoursFor(provider.babyProfile));
+      } else {
+        wakeOffset = _durationFromMinHours(BabyProfile.napDurationHoursFor(provider.babyProfile));
+      }
+      final estimatedWake = slept.add(wakeOffset);
+      buffer.write('${strings.estimatedWakeUp}: ${fmt.format(estimatedWake)}');
+    } else if (wokeUp != null) {
+      buffer.writeln('${strings.acordou}: ${fmt.format(wokeUp)}');
+      final wakeOffset = _durationFromMinHours(BabyProfile.wakeWindowHoursFor(provider.babyProfile));
+      final estimatedSleep = wokeUp.add(wakeOffset);
+      buffer.write('${strings.estimatedNextSleep}: ${fmt.format(estimatedSleep)}');
+    } else {
+      return;
+    }
+
+    Share.share(buffer.toString().trimRight());
+  }
+
+  Duration _durationFromMinHours(({double minHours, double maxHours}) window) =>
+      Duration(minutes: (window.minHours * 60).round());
+
+  Future<bool?> _askBridgeNap(BuildContext context, LocalizedStrings strings) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(strings.bridgeNapQuestionTitle),
+        content: Text(strings.bridgeNapQuestionBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(strings.noLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(strings.yesLabel),
+          ),
+        ],
+      ),
+    );
   }
 
   void _deleteEntryConfirm(BuildContext context, AppProvider provider, LocalizedStrings strings, int index) {

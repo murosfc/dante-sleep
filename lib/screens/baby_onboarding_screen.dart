@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../knowledge/sleep_knowledge_base.dart';
 import '../models/baby_profile.dart';
 import '../providers/app_provider.dart';
 import '../services/firebase_service.dart';
@@ -21,6 +22,10 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
 
   final _nameCtrl = TextEditingController();
   final _routineCtrl = TextEditingController(text: '30');
+  final _wakeWindowMinCtrl = TextEditingController();
+  final _wakeWindowMaxCtrl = TextEditingController();
+  final _napDurationMinCtrl = TextEditingController();
+  final _napDurationMaxCtrl = TextEditingController();
 
   DateTime? _birthdate;
   String _sex = 'male';
@@ -32,6 +37,33 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
   bool get _isPt => Localizations.localeOf(context).languageCode == 'pt';
   String _t(String pt, String en) => _isPt ? pt : en;
   String get _defaultBabyName => _isPt ? 'Bebê' : 'Baby';
+
+  String get _wakeWindowDefaultLabel {
+    final ww = SleepKnowledgeBase.getWakeWindowHours(_birthdate);
+    return SleepKnowledgeBase.formatHoursRange(ww.minHours, ww.maxHours);
+  }
+
+  String get _napDurationDefaultLabel {
+    final nd = SleepKnowledgeBase.getNapDurationHours(_birthdate);
+    return SleepKnowledgeBase.formatHoursRange(nd.minHours, nd.maxHours);
+  }
+
+  static final _hmRegex = RegExp(r'^([0-9]{1,2}):([0-5][0-9])$');
+
+  static String _formatMinutesAsHm(int? minutes) {
+    if (minutes == null) return '';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return '$h:${m.toString().padLeft(2, '0')}';
+  }
+
+  static int? _parseHmToMinutes(String text) {
+    final match = _hmRegex.firstMatch(text.trim());
+    if (match == null) return null;
+    final hours = int.parse(match.group(1)!);
+    final minutes = int.parse(match.group(2)!);
+    return hours * 60 + minutes;
+  }
 
   @override
   void initState() {
@@ -54,6 +86,10 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
         _routineCtrl.text = p.nightRoutineMinutes.toString();
         _targetBedtimeHour = p.targetBedtimeHour;
         _targetBedtimeMinute = p.targetBedtimeMinute;
+        _wakeWindowMinCtrl.text = _formatMinutesAsHm(p.wakeWindowMinMinutes);
+        _wakeWindowMaxCtrl.text = _formatMinutesAsHm(p.wakeWindowMaxMinutes);
+        _napDurationMinCtrl.text = _formatMinutesAsHm(p.napDurationMinMinutes);
+        _napDurationMaxCtrl.text = _formatMinutesAsHm(p.napDurationMaxMinutes);
       });
       return;
     }
@@ -83,6 +119,10 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _routineCtrl.dispose();
+    _wakeWindowMinCtrl.dispose();
+    _wakeWindowMaxCtrl.dispose();
+    _napDurationMinCtrl.dispose();
+    _napDurationMaxCtrl.dispose();
     super.dispose();
   }
 
@@ -139,6 +179,32 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
       return;
     }
 
+    final wakeWindowMin = _parseHmToMinutes(_wakeWindowMinCtrl.text);
+    final wakeWindowMax = _parseHmToMinutes(_wakeWindowMaxCtrl.text);
+    final napDurationMin = _parseHmToMinutes(_napDurationMinCtrl.text);
+    final napDurationMax = _parseHmToMinutes(_napDurationMaxCtrl.text);
+
+    if ((wakeWindowMin == null) != (wakeWindowMax == null) ||
+        (napDurationMin == null) != (napDurationMax == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_t(
+          'Preencha mínimo e máximo juntos, ou deixe ambos em branco.',
+          'Fill in both minimum and maximum, or leave both blank.',
+        )),
+      ));
+      return;
+    }
+    if ((wakeWindowMin != null && wakeWindowMax != null && wakeWindowMin > wakeWindowMax) ||
+        (napDurationMin != null && napDurationMax != null && napDurationMin > napDurationMax)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_t(
+          'O valor mínimo não pode ser maior que o máximo.',
+          'The minimum value cannot be greater than the maximum.',
+        )),
+      ));
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     // Request notification permissions when saving profile (first time)
@@ -156,6 +222,10 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
       nightRoutineMinutes: int.tryParse(_routineCtrl.text.trim()) ?? 30,
       targetBedtimeHour: _targetBedtimeHour,
       targetBedtimeMinute: _targetBedtimeMinute,
+      wakeWindowMinMinutes: wakeWindowMin,
+      wakeWindowMaxMinutes: wakeWindowMax,
+      napDurationMinMinutes: napDurationMin,
+      napDurationMaxMinutes: napDurationMax,
     );
 
     final provider = Provider.of<AppProvider>(context, listen: false);
@@ -339,6 +409,30 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
                           ),
                           const SizedBox(height: 20),
 
+                          _rangeMinutesFields(
+                            label: _t('Janela acordado (durante o dia)',
+                                'Wake window (daytime)'),
+                            helperText: _t(
+                              'Tempo acordado até a próxima soneca. Em branco = usar padrão da idade ($_wakeWindowDefaultLabel).',
+                              'Awake time until the next nap. Blank = use age default ($_wakeWindowDefaultLabel).',
+                            ),
+                            minCtrl: _wakeWindowMinCtrl,
+                            maxCtrl: _wakeWindowMaxCtrl,
+                          ),
+                          const SizedBox(height: 20),
+
+                          _rangeMinutesFields(
+                            label: _t('Janela de sono (duração da soneca)',
+                                'Sleep window (nap duration)'),
+                            helperText: _t(
+                              'Duração típica de uma soneca. Em branco = usar padrão da idade ($_napDurationDefaultLabel).',
+                              'Typical duration of a nap. Blank = use age default ($_napDurationDefaultLabel).',
+                            ),
+                            minCtrl: _napDurationMinCtrl,
+                            maxCtrl: _napDurationMaxCtrl,
+                          ),
+                          const SizedBox(height: 20),
+
                           const SizedBox(height: 32),
 
                           ElevatedButton(
@@ -387,6 +481,59 @@ class _BabyOnboardingScreenState extends State<BabyOnboardingScreen> {
                 fontSize: 13,
                 fontWeight: FontWeight.w600)),
       );
+
+  Widget _rangeMinutesFields({
+    required String label,
+    required String helperText,
+    required TextEditingController minCtrl,
+    required TextEditingController maxCtrl,
+  }) {
+    String? validator(String? v) {
+      final text = (v ?? '').trim();
+      if (text.isEmpty) return null;
+      final minutes = _parseHmToMinutes(text);
+      if (minutes == null) {
+        return _t('Formato h:mm (ex: 2:30)', 'Format h:mm (e.g. 2:30)');
+      }
+      if (minutes < 5 || minutes > 600) {
+        return _t('Entre 0:05 e 10:00', 'Between 0:05 and 10:00');
+      }
+      return null;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label(label),
+        Row(
+          children: [
+            Expanded(
+              child: _field(
+                controller: minCtrl,
+                hint: _t('Mín (h:mm)', 'Min (h:mm)'),
+                keyboardType: TextInputType.datetime,
+                validator: validator,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _field(
+                controller: maxCtrl,
+                hint: _t('Máx (h:mm)', 'Max (h:mm)'),
+                keyboardType: TextInputType.datetime,
+                validator: validator,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          helperText,
+          style: const TextStyle(color: Color(0xFF7A6990), fontSize: 12),
+        ),
+      ],
+    );
+  }
 
   Widget _field({
     required TextEditingController controller,
