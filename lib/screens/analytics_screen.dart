@@ -26,6 +26,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // Auto-populate the AI schedule prediction the first time the screen opens
+    // (it stays empty until a morning wake-up or a manual refresh otherwise).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppProvider>().refreshSleepWindowPredictions();
+    });
   }
 
   @override
@@ -410,6 +416,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     Color textColor,
     Color subtitleColor,
   ) {
+    // When AI suggestions are off, the schedule is computed locally from the
+    // manual sleep plan instead of asking the model.
+    if (provider.babyProfile?.useAiSuggestions == false) {
+      return _buildManualSleepWindowsTab(
+        provider,
+        isDay,
+        textColor,
+        subtitleColor,
+      );
+    }
+
     final predictions = provider.sleepWindowPredictions;
     final hasEnoughData = provider.entries.length >= 3;
 
@@ -504,6 +521,118 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManualSleepWindowsTab(
+    AppProvider provider,
+    bool isDay,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    final isPt = provider.locale.languageCode == 'pt';
+    final windows = provider.manualScheduleWindows();
+    final nightLine = provider.manualNightAverageLine(isPt: isPt);
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t(context, 'Previsão do Dia', 'Day Forecast'),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: textColor,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _t(
+              context,
+              'Calculado pelo app a partir do plano manual de sono.',
+              'Computed by the app from the manual sleep plan.',
+            ),
+            style: TextStyle(color: subtitleColor, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: windows.isEmpty
+                ? Center(
+                    child: Text(
+                      _t(
+                        context,
+                        'Nenhuma janela configurada.',
+                        'No windows configured.',
+                      ),
+                      style: TextStyle(color: subtitleColor),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: windows.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, i) {
+                      final w = windows[i];
+                      final label = w.label ??
+                          (w.isAwake
+                              ? _t(context, 'Acordado', 'Awake')
+                              : _t(context, 'Sono', 'Sleep'));
+                      final range = w.spansToNextDay
+                          ? '${w.startTime} → ${w.endTime} '
+                              '(${_t(context, 'dia seguinte', 'next day')})'
+                          : '${w.startTime} → ${w.endTime}';
+                      final emphasise = w.spansToNextDay;
+                      return Row(
+                        children: [
+                          Text(
+                            w.isAwake ? '🟢' : '😴',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: emphasise
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            range,
+                            style: TextStyle(
+                              color: emphasise ? textColor : subtitleColor,
+                              fontWeight:
+                                  emphasise ? FontWeight.w700 : FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+          if (nightLine != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              nightLine,
+              style: TextStyle(color: subtitleColor, fontSize: 11),
+            ),
+          ],
+          const SizedBox(height: 4),
+          Text(
+            _t(
+              context,
+              'Base: acordar médio das noites recentes (ou 06:00).',
+              'Base: average recent-night wake-up (or 06:00).',
+            ),
+            style: TextStyle(color: subtitleColor, fontSize: 11),
+          ),
         ],
       ),
     );

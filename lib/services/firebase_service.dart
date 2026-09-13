@@ -203,6 +203,47 @@ class FirebaseService {
 
   User? get currentUser => _auth?.currentUser;
 
+  bool get hasGoogleProvider => currentUser?.providerData
+          .any((p) => p.providerId == GoogleAuthProvider.PROVIDER_ID) ??
+      false;
+
+  bool get hasPasswordProvider => currentUser?.providerData
+          .any((p) => p.providerId == EmailAuthProvider.PROVIDER_ID) ??
+      false;
+
+  /// Links the currently signed-in (email/password) user with a Google
+  /// account so the same account can be accessed with either method.
+  Future<User?> linkGoogleAccount() async {
+    final user = currentUser;
+    if (user == null) return null;
+
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return null;
+
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final userCredential = await user.linkWithCredential(credential);
+    return userCredential.user;
+  }
+
+  /// Links the currently signed-in (Google) user with an email/password
+  /// credential so the same account can be accessed with either method.
+  Future<User?> linkEmailPassword(String email, String password) async {
+    final user = currentUser;
+    if (user == null) return null;
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: password,
+    );
+    final userCredential = await user.linkWithCredential(credential);
+    return userCredential.user;
+  }
+
   // Sleep entries methods (new structure: sleep_entries/{uid} = { entryId: { data } })
   Future<String> createSleepEntry(
     String userId,

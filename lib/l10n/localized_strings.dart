@@ -663,6 +663,90 @@ class LocalizedStrings {
         : AppStrings.authFooterHint;
   }
 
+  String get settingsLinkGoogleTitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.settingsLinkGoogleTitle
+        : AppStrings.settingsLinkGoogleTitle;
+  }
+
+  String get settingsLinkGoogleSubtitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.settingsLinkGoogleSubtitle
+        : AppStrings.settingsLinkGoogleSubtitle;
+  }
+
+  String get settingsAddEmailPasswordTitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.settingsAddEmailPasswordTitle
+        : AppStrings.settingsAddEmailPasswordTitle;
+  }
+
+  String get settingsAddEmailPasswordSubtitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.settingsAddEmailPasswordSubtitle
+        : AppStrings.settingsAddEmailPasswordSubtitle;
+  }
+
+  String get linkEmailScreenTitle {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.linkEmailScreenTitle
+        : AppStrings.linkEmailScreenTitle;
+  }
+
+  String get passwordStrengthHint {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.passwordStrengthHint
+        : AppStrings.passwordStrengthHint;
+  }
+
+  String get passwordWeak {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.passwordWeak
+        : AppStrings.passwordWeak;
+  }
+
+  String get linkGoogleSuccess {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.linkGoogleSuccess
+        : AppStrings.linkGoogleSuccess;
+  }
+
+  String get linkEmailSuccess {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.linkEmailSuccess
+        : AppStrings.linkEmailSuccess;
+  }
+
+  String get linkErrorEmailInUse {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.linkErrorEmailInUse
+        : AppStrings.linkErrorEmailInUse;
+  }
+
+  String get linkErrorRequiresRecentLogin {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.linkErrorRequiresRecentLogin
+        : AppStrings.linkErrorRequiresRecentLogin;
+  }
+
+  String get linkErrorGeneric {
+    final locale = Localizations.localeOf(context);
+    return locale.languageCode == 'pt'
+        ? AppStringsPortuguese.linkErrorGeneric
+        : AppStrings.linkErrorGeneric;
+  }
+
   String getEntriesImportedMessage(int count) {
     final template = entriesImported;
     return template.replaceFirst('{count}', count.toString());

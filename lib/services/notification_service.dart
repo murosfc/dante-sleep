@@ -19,6 +19,9 @@ class NotificationService {
   static const int _bedtimeNotifId = 1002;
   static const int _nightWakeNotifId = 1003;
 
+  /// Manual-plan nap notifications occupy ids [_manualNapBaseId] .. +N.
+  static const int _manualNapBaseId = 1100;
+
   static Future<void> initialize() async {
     if (_initialized) return;
     tz.initializeTimeZones();
@@ -136,6 +139,80 @@ class NotificationService {
       }
     }
   }
+
+  /// Schedules the manual (AI-free) sleep plan: one notification per upcoming
+  /// nap start plus one for the night routine. [napStarts] and [routineStart]
+  /// are absolute times for today; anything already in the past is skipped.
+  static Future<void> scheduleManualPlan({
+    required List<DateTime> napStarts,
+    required DateTime? routineStart,
+    required int totalNaps,
+    required bool isPt,
+    String? userName,
+    String? babyName,
+    String? babySex,
+  }) async {
+    await initialize();
+    await cancelAll();
+
+    final now = DateTime.now();
+
+    for (var i = 0; i < napStarts.length; i++) {
+      final start = napStarts[i];
+      if (!start.isAfter(now)) continue;
+      // napStarts holds only the still-upcoming naps; recover the human nap
+      // number (1-based) from how many are left.
+      final napNumber = totalNaps - napStarts.length + i + 1;
+      await _schedule(
+        id: _manualNapBaseId + i,
+        title: _napTitle(isPt: isPt, babyName: babyName, babySex: babySex),
+        body: _composeBody(
+          isPt: isPt,
+          userName: userName,
+          babyName: babyName,
+          babySex: babySex,
+          rationale: _manualNapRationale(
+            isPt: isPt,
+            napNumber: napNumber,
+            totalNaps: totalNaps,
+          ),
+          fallbackTime: _formatHm(start),
+        ),
+        scheduledTime: start,
+      );
+    }
+
+    if (routineStart != null && routineStart.isAfter(now)) {
+      await _schedule(
+        id: _bedtimeNotifId,
+        title: _routineTitle(isPt: isPt, babyName: babyName, babySex: babySex),
+        body: _composeBody(
+          isPt: isPt,
+          userName: userName,
+          babyName: babyName,
+          babySex: babySex,
+          rationale: isPt
+              ? 'Hora de iniciar o ritual do sono da noite.'
+              : 'Time to start the bedtime routine.',
+          fallbackTime: _formatHm(routineStart),
+        ),
+        scheduledTime: routineStart,
+      );
+    }
+  }
+
+  static String _manualNapRationale({
+    required bool isPt,
+    required int napNumber,
+    required int totalNaps,
+  }) {
+    return isPt
+        ? 'Soneca $napNumber de $totalNaps do dia.'
+        : 'Nap $napNumber of $totalNaps for the day.';
+  }
+
+  static String _formatHm(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 
   static String _napTitle({
     required bool isPt,

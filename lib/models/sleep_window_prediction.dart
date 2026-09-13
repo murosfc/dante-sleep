@@ -16,11 +16,20 @@ class SleepWindow {
   final String? endTime; // null for ongoing sleep
   final String? rationale;
 
+  /// Optional display label (e.g. "Soneca 1", "Sono noturno"). When null the
+  /// UI falls back to a generic awake/asleep label.
+  final String? label;
+
+  /// True for the final night-sleep block, which runs into the next day.
+  final bool spansToNextDay;
+
   const SleepWindow({
     required this.isAwake,
     required this.startTime,
     this.endTime,
     this.rationale,
+    this.label,
+    this.spansToNextDay = false,
   });
 
   String displayText(bool isPt) {

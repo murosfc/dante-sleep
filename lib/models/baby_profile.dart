@@ -22,6 +22,34 @@ class BabyProfile {
   int? napDurationMinMinutes;
   int? napDurationMaxMinutes;
 
+  // ─── Manual sleep plan (used when [useAiSuggestions] is false) ────────────
+  // When AI suggestions are disabled the app schedules naps/bedtime itself by
+  // chaining, from the morning wake-up: wake window → nap → wake window → …
+  // → last wake window, whose end is the start of the night routine.
+
+  /// Whether AI suggestions drive nap/bedtime hints and notifications.
+  /// Defaults to true so existing users are unaffected.
+  bool useAiSuggestions;
+
+  /// How many naps the manual plan schedules per day.
+  int manualNapsPerDay;
+
+  /// When true, a single wake-window value is reused for every gap of the day
+  /// ([manualWakeWindowsMinutes] holds one entry). When false it holds
+  /// [manualNapsPerDay] + 1 entries (one per gap, including morning→nap 1 and
+  /// last nap→night routine).
+  bool manualSameWakeWindow;
+
+  /// Same idea as [manualSameWakeWindow] but for nap durations: one shared
+  /// value, or [manualNapsPerDay] explicit entries.
+  bool manualSameNapDuration;
+
+  /// Wake-window durations in minutes (see [manualSameWakeWindow]).
+  List<int> manualWakeWindowsMinutes;
+
+  /// Nap durations in minutes (see [manualSameNapDuration]).
+  List<int> manualNapDurationsMinutes;
+
   BabyProfile({
     this.name,
     this.birthdate,
@@ -35,7 +63,37 @@ class BabyProfile {
     this.wakeWindowMaxMinutes,
     this.napDurationMinMinutes,
     this.napDurationMaxMinutes,
-  });
+    this.useAiSuggestions = true,
+    this.manualNapsPerDay = 3,
+    this.manualSameWakeWindow = true,
+    this.manualSameNapDuration = true,
+    List<int>? manualWakeWindowsMinutes,
+    List<int>? manualNapDurationsMinutes,
+  })  : manualWakeWindowsMinutes = manualWakeWindowsMinutes ?? const [150],
+        manualNapDurationsMinutes = manualNapDurationsMinutes ?? const [90];
+
+  /// Wake-window durations expanded to exactly [manualNapsPerDay] + 1 entries,
+  /// so callers can index gap `i` (0 = morning→nap 1, last = nap N→routine)
+  /// without worrying about the "same value" shorthand.
+  List<int> get resolvedManualWakeWindowsMinutes =>
+      _resolveManualList(manualWakeWindowsMinutes, manualNapsPerDay + 1, 150);
+
+  /// Nap durations expanded to exactly [manualNapsPerDay] entries.
+  List<int> get resolvedManualNapDurationsMinutes =>
+      _resolveManualList(manualNapDurationsMinutes, manualNapsPerDay, 90);
+
+  static List<int> _resolveManualList(
+    List<int> source,
+    int length,
+    int fallback,
+  ) {
+    if (length <= 0) return const [];
+    final base = source.isEmpty ? [fallback] : source;
+    return List<int>.generate(
+      length,
+      (i) => i < base.length ? base[i] : base.last,
+    );
+  }
 
   /// Wake window in hours, using the custom value if set, otherwise the
   /// age-based guideline.
@@ -147,6 +205,12 @@ class BabyProfile {
         'wakeWindowMaxMinutes': wakeWindowMaxMinutes,
         'napDurationMinMinutes': napDurationMinMinutes,
         'napDurationMaxMinutes': napDurationMaxMinutes,
+        'useAiSuggestions': useAiSuggestions,
+        'manualNapsPerDay': manualNapsPerDay,
+        'manualSameWakeWindow': manualSameWakeWindow,
+        'manualSameNapDuration': manualSameNapDuration,
+        'manualWakeWindowsMinutes': manualWakeWindowsMinutes,
+        'manualNapDurationsMinutes': manualNapDurationsMinutes,
       };
 
   static DateTime? _parseFirestoreDate(dynamic value) {
@@ -176,6 +240,16 @@ class BabyProfile {
     return null;
   }
 
+  static List<int>? _parseIntList(dynamic value) {
+    if (value is! List || value.isEmpty) return null;
+    final parsed = <int>[];
+    for (final item in value) {
+      final n = _parseNullableInt(item);
+      if (n != null) parsed.add(n);
+    }
+    return parsed.isEmpty ? null : parsed;
+  }
+
   factory BabyProfile.fromFirestore(Map<String, dynamic> data) => BabyProfile(
         name: data['name'] as String?,
         birthdate: _parseFirestoreDate(data['birthdate']),
@@ -190,5 +264,13 @@ class BabyProfile {
         wakeWindowMaxMinutes: _parseNullableInt(data['wakeWindowMaxMinutes']),
         napDurationMinMinutes: _parseNullableInt(data['napDurationMinMinutes']),
         napDurationMaxMinutes: _parseNullableInt(data['napDurationMaxMinutes']),
+        useAiSuggestions: (data['useAiSuggestions'] as bool?) ?? true,
+        manualNapsPerDay: _parseInt(data['manualNapsPerDay'], 3),
+        manualSameWakeWindow: (data['manualSameWakeWindow'] as bool?) ?? true,
+        manualSameNapDuration: (data['manualSameNapDuration'] as bool?) ?? true,
+        manualWakeWindowsMinutes:
+            _parseIntList(data['manualWakeWindowsMinutes']),
+        manualNapDurationsMinutes:
+            _parseIntList(data['manualNapDurationsMinutes']),
       );
 }

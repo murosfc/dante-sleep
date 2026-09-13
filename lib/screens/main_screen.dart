@@ -1040,6 +1040,13 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final ai = provider.aiSuggestion;
     final bgColor = isDay ? Colors.white : const Color(0xFF1D1130);
+    final usingAi = provider.babyProfile?.useAiSuggestions ?? true;
+    final sheetTitle = usingAi
+        ? _t('Sugestões IA', 'AI Suggestions')
+        : _t('Agenda de sono', 'Sleep schedule');
+    final loadingText = usingAi
+        ? _t('Analisando dados de sono…', 'Analyzing sleep data…')
+        : _t('Calculando agenda…', 'Calculating schedule…');
 
     return Container(
       decoration: BoxDecoration(
@@ -1067,7 +1074,7 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
                 const Icon(Icons.auto_awesome, color: Color(0xFF9A7CFF), size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  _t('Sugestões IA', 'AI Suggestions'),
+                  sheetTitle,
                   style: TextStyle(
                     color: textColor,
                     fontSize: 18,
@@ -1098,7 +1105,7 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
                       const CircularProgressIndicator(color: Color(0xFF9A7CFF)),
                       const SizedBox(height: 12),
                       Text(
-                        _t('Analisando dados de sono…', 'Analyzing sleep data…'),
+                        loadingText,
                         style: TextStyle(color: subtitleColor),
                       ),
                     ],

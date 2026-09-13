@@ -12,10 +12,12 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../knowledge/manual_sleep_plan.dart';
 import '../knowledge/sleep_knowledge_base.dart';
 import '../models/ai_suggestion.dart';
 import '../models/baby_profile.dart';
 import '../models/entry.dart';
+import '../models/sleep_window_prediction.dart';
 import '../models/sync_queue_item.dart';
 import '../services/firebase_service.dart';
 import '../services/gemini_service.dart';
@@ -283,8 +285,10 @@ class AppProvider with ChangeNotifier {
       await _migrateOldEntriesToFirestore();
       await _syncToFirestore();
 
-      // 5. Refresh AI suggestions if API key is configured
-      if (hasNvidiaApiKeyConfigured && babyProfile != null) {
+      // 5. Refresh suggestions: AI when a key is configured, or always when
+      //    the profile opted into the manual (AI-free) plan.
+      if (babyProfile != null &&
+          (hasNvidiaApiKeyConfigured || !babyProfile!.useAiSuggestions)) {
         refreshAiSuggestions();
       }
     } catch (e) {
@@ -316,6 +320,21 @@ class AppProvider with ChangeNotifier {
   // ─── AI suggestions ────────────────────────────────────────────────────────
   Future<void> refreshAiSuggestions() async {
     final profile = babyProfile;
+    if (profile == null) {
+      debugPrint('AI suggestion error: baby profile not found.');
+      aiSuggestion = const AiSuggestion(
+        error: 'Perfil do bebê não encontrado. Complete o onboarding.',
+      );
+      notifyListeners();
+      return;
+    }
+
+    // AI disabled: the app computes the schedule itself, no network calls.
+    if (!profile.useAiSuggestions) {
+      await _refreshManualPlan(profile);
+      return;
+    }
+
     final apiKey = nvidiaApiKeyFromEnv;
     if (apiKey.isEmpty) {
       debugPrint(
@@ -324,14 +343,6 @@ class AppProvider with ChangeNotifier {
       aiSuggestion = const AiSuggestion(
         error:
             'NVIDIA_API_KEY não encontrada. Configure .env ou --dart-define=NVIDIA_API_KEY.',
-      );
-      notifyListeners();
-      return;
-    }
-    if (profile == null) {
-      debugPrint('AI suggestion error: baby profile not found.');
-      aiSuggestion = const AiSuggestion(
-        error: 'Perfil do bebê não encontrado. Complete o onboarding.',
       );
       notifyListeners();
       return;
@@ -413,8 +424,335 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  // ─── Manual (AI-free) sleep plan ───────────────────────────────────────────
+
+  /// Turns AI suggestions on/off. When turning off, the app immediately
+  /// recomputes the manual schedule; when turning on, it fetches AI again.
+  Future<void> setUseAiSuggestions(bool value) async {
+    final profile = babyProfile;
+    if (profile == null || profile.useAiSuggestions == value) return;
+    profile.useAiSuggestions = value;
+    notifyListeners();
+    await saveBabyProfile(profile);
+    _sleepWindowPredictions = '';
+    await refreshAiSuggestions();
+  }
+
+  /// Persists the manual plan. [wakeWindowsMinutes] holds 1 entry when
+  /// [sameWakeWindow] is true, otherwise [napsPerDay] + 1 entries;
+  /// [napDurationsMinutes] holds 1 entry when [sameNapDuration] is true,
+  /// otherwise [napsPerDay] entries. The min/max of each list is also mirrored
+  /// into the profile's wake-window / nap-duration ranges so the rest of the
+  /// app (share estimates, local night forecast) follows the manual numbers.
+  Future<void> setManualSleepPlan({
+    required int napsPerDay,
+    required bool sameWakeWindow,
+    required bool sameNapDuration,
+    required List<int> wakeWindowsMinutes,
+    required List<int> napDurationsMinutes,
+  }) async {
+    final profile = babyProfile;
+    if (profile == null) return;
+
+    profile.manualNapsPerDay = napsPerDay.clamp(0, 6);
+    profile.manualSameWakeWindow = sameWakeWindow;
+    profile.manualSameNapDuration = sameNapDuration;
+    profile.manualWakeWindowsMinutes =
+        wakeWindowsMinutes.isEmpty ? [150] : List<int>.from(wakeWindowsMinutes);
+    profile.manualNapDurationsMinutes =
+        napDurationsMinutes.isEmpty ? [90] : List<int>.from(napDurationsMinutes);
+
+    // Mirror into the shared ranges used elsewhere in the app.
+    final resolvedWw = profile.resolvedManualWakeWindowsMinutes;
+    final resolvedNd = profile.resolvedManualNapDurationsMinutes;
+    if (resolvedWw.isNotEmpty) {
+      profile.wakeWindowMinMinutes = resolvedWw.reduce((a, b) => a < b ? a : b);
+      profile.wakeWindowMaxMinutes = resolvedWw.reduce((a, b) => a > b ? a : b);
+    }
+    if (resolvedNd.isNotEmpty) {
+      profile.napDurationMinMinutes = resolvedNd.reduce((a, b) => a < b ? a : b);
+      profile.napDurationMaxMinutes = resolvedNd.reduce((a, b) => a > b ? a : b);
+    }
+
+    notifyListeners();
+    await saveBabyProfile(profile);
+    if (!profile.useAiSuggestions) {
+      await refreshAiSuggestions();
+    }
+  }
+
+  /// Builds nap/routine hints and schedules notifications from the manual plan.
+  /// At night it behaves like the AI path: a single wake-up forecast, no nap
+  /// notifications.
+  Future<void> _refreshManualPlan(BabyProfile profile) async {
+    _aiSuggestionsRead = false;
+    aiSuggestion = const AiSuggestion.loading();
+    notifyListeners();
+
+    final isPt = locale.languageCode == 'pt';
+
+    if (_isNightContext()) {
+      final nightForecast = _calculateNightWakeForecast(profile, isPt: isPt);
+      aiSuggestion = AiSuggestion(
+        nightWakeTime: nightForecast.time,
+        nightWakeRationale: nightForecast.rationale,
+        generatedAt: DateTime.now(),
+      );
+      notifyListeners();
+      try {
+        await NotificationService.scheduleAiSuggestions(
+          napTime: null,
+          napRationale: null,
+          routineStart: null,
+          routineRationale: null,
+          nightWakeTime: aiSuggestion!.nightWakeTime,
+          nightWakeRationale: aiSuggestion!.nightWakeRationale,
+          isPt: isPt,
+          userName: userDisplayName,
+          babyName: profile.name,
+          babySex: profile.sex,
+        );
+      } catch (e) {
+        debugPrint('NotificationService error: $e');
+      }
+      return;
+    }
+
+    final anchor = _resolveManualAnchor();
+    final schedule = ManualSleepPlan.compute(
+      anchorTime: anchor.time,
+      anchorIsAsleep: anchor.asleep,
+      completedNaps: anchor.completedNaps,
+      wakeWindowsMinutes: profile.resolvedManualWakeWindowsMinutes,
+      napDurationsMinutes: profile.resolvedManualNapDurationsMinutes,
+    );
+
+    final now = DateTime.now();
+    final nextNap = schedule.nextNap(now);
+    final totalNaps = profile.manualNapsPerDay;
+    final napNumber = nextNap != null ? nextNap.index + 1 : null;
+
+    aiSuggestion = AiSuggestion(
+      nextNapTime: nextNap != null ? _formatHm(nextNap.start) : null,
+      nextNapRationale: nextNap != null
+          ? (isPt
+              ? 'Soneca $napNumber de $totalNaps · dura ${_formatDurationHm(nextNap.duration)}.'
+              : 'Nap $napNumber of $totalNaps · lasts ${_formatDurationHm(nextNap.duration)}.')
+          : null,
+      bedtimeRoutineStart: _formatHm(schedule.nightRoutineStart),
+      bedtimeRationale: isPt
+          ? 'Fim da última janela acordado do dia.'
+          : 'End of the last wake window of the day.',
+      generatedAt: DateTime.now(),
+    );
+    notifyListeners();
+
+    try {
+      await NotificationService.scheduleManualPlan(
+        napStarts: schedule
+            .upcomingNaps(now)
+            .map((n) => n.start)
+            .toList(growable: false),
+        routineStart: schedule.nightRoutineStart,
+        totalNaps: totalNaps,
+        isPt: isPt,
+        userName: userDisplayName,
+        babyName: profile.name,
+        babySex: profile.sex,
+      );
+    } catch (e) {
+      debugPrint('NotificationService error: $e');
+    }
+  }
+
+  /// Resolves where "now" sits in the manual plan from the logged entries:
+  /// the anchor timestamp, whether the baby is currently asleep, and how many
+  /// naps have already finished today. Re-derived on every call so the plan
+  /// re-anchors to real events as they are logged.
+  ({DateTime time, bool asleep, int completedNaps}) _resolveManualAnchor() {
+    final now = DateTime.now();
+    if (entries.isEmpty) {
+      return (time: now, asleep: false, completedNaps: 0);
+    }
+
+    // Walk the newest entries until the current night's block ends. Day naps
+    // sitting above the most recent night entry are "today".
+    final todayDayEntries = <SleepEntry>[];
+    DateTime? morningWake;
+    for (final entry in entries) {
+      if (!entry.isDay) {
+        morningWake = entry.wokeUp;
+        break;
+      }
+      todayDayEntries.add(entry);
+    }
+
+    final completedNaps =
+        todayDayEntries.where((e) => e.wokeUp != null).length;
+    final latest = entries.first;
+
+    // Currently asleep (day nap in progress).
+    if (latest.isDay && latest.slept != null && latest.wokeUp == null) {
+      return (
+        time: latest.slept!,
+        asleep: true,
+        completedNaps: completedNaps,
+      );
+    }
+
+    // Awake after a day nap.
+    if (latest.isDay && latest.wokeUp != null) {
+      return (
+        time: latest.wokeUp!,
+        asleep: false,
+        completedNaps: completedNaps,
+      );
+    }
+
+    // Just woke up for the day (latest entry is the night block).
+    if (!latest.isDay && morningWake != null) {
+      return (time: morningWake, asleep: false, completedNaps: 0);
+    }
+
+    // Fallbacks: night entry still in progress, or no usable timestamp.
+    return (
+      time: morningWake ?? latest.slept ?? now,
+      asleep: false,
+      completedNaps: completedNaps,
+    );
+  }
+
+  String _formatDurationHm(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    return '$h:${m.toString().padLeft(2, '0')}';
+  }
+
+  String _formatMinutesOfDay(int minutesOfDay) {
+    final h = (minutesOfDay ~/ 60) % 24;
+    final m = minutesOfDay % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  int? _averageMinuteOfDay(Iterable<DateTime?> times) {
+    final values = times
+        .whereType<DateTime>()
+        .map((t) => t.hour * 60 + t.minute)
+        .toList();
+    if (values.isEmpty) return null;
+    return (values.reduce((a, b) => a + b) / values.length).round();
+  }
+
+  /// Recent completed night entries (newest first), capped so old data doesn't
+  /// dominate the averages.
+  List<SleepEntry> _recentNights({int limit = 14}) {
+    final nights = <SleepEntry>[];
+    for (final e in entries) {
+      if (!e.isDay && e.slept != null && e.wokeUp != null) {
+        nights.add(e);
+        if (nights.length >= limit) break;
+      }
+    }
+    return nights;
+  }
+
+  /// The whole day laid out as alternating awake/asleep windows, computed from
+  /// the manual plan and anchored at the average morning wake-up (or 06:00 when
+  /// there isn't enough history). Used by the analytics "day forecast" tab when
+  /// AI suggestions are disabled.
+  List<SleepWindow> manualScheduleWindows() {
+    final profile = babyProfile;
+    if (profile == null) return const [];
+
+    final nights = _recentNights();
+    final wakeMinutes =
+        _averageMinuteOfDay(nights.map((e) => e.wokeUp)) ?? 6 * 60;
+    final now = DateTime.now();
+    final wake = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      wakeMinutes ~/ 60,
+      wakeMinutes % 60,
+    );
+
+    final schedule = ManualSleepPlan.compute(
+      anchorTime: wake,
+      anchorIsAsleep: false,
+      completedNaps: 0,
+      wakeWindowsMinutes: profile.resolvedManualWakeWindowsMinutes,
+      napDurationsMinutes: profile.resolvedManualNapDurationsMinutes,
+    );
+
+    final isPt = locale.languageCode == 'pt';
+    final awakeLabel = isPt ? 'Acordado' : 'Awake';
+
+    // N naps → N+1 awake windows → night sleep. There is no "extra" nap: the
+    // slot after the last nap is the last wake window, and what follows is the
+    // night sleep, which runs until the next day's wake-up.
+    final windows = <SleepWindow>[];
+    var cursor = wake;
+    for (final nap in schedule.naps) {
+      windows.add(SleepWindow(
+        isAwake: true,
+        startTime: _formatHm(cursor),
+        endTime: _formatHm(nap.start),
+        label: awakeLabel,
+      ));
+      windows.add(SleepWindow(
+        isAwake: false,
+        startTime: _formatHm(nap.start),
+        endTime: _formatHm(nap.end),
+        label: isPt ? 'Soneca ${nap.index + 1}' : 'Nap ${nap.index + 1}',
+      ));
+      cursor = nap.end;
+    }
+    // Last wake window: from the last nap (or morning wake) to the night
+    // routine start.
+    windows.add(SleepWindow(
+      isAwake: true,
+      startTime: _formatHm(cursor),
+      endTime: _formatHm(schedule.nightRoutineStart),
+      label: awakeLabel,
+    ));
+    // Night sleep: routine start → next day's (average) wake-up.
+    final nextWake = wake.add(const Duration(days: 1));
+    windows.add(SleepWindow(
+      isAwake: false,
+      startTime: _formatHm(schedule.nightRoutineStart),
+      endTime: _formatHm(nextWake),
+      label: isPt ? 'Sono noturno' : 'Night sleep',
+      spansToNextDay: true,
+    ));
+    return windows;
+  }
+
+  /// One-line night summary for the same tab: average bedtime → average wake,
+  /// from recent nights. Null when there isn't enough history.
+  String? manualNightAverageLine({required bool isPt}) {
+    final nights = _recentNights();
+    if (nights.length < 2) return null;
+    final bed = _averageMinuteOfDay(nights.map((e) => e.slept));
+    final wake = _averageMinuteOfDay(nights.map((e) => e.wokeUp));
+    if (bed == null || wake == null) return null;
+    final bedStr = _formatMinutesOfDay(bed);
+    final wakeStr = _formatMinutesOfDay(wake);
+    return isPt
+        ? 'Dorme ~$bedStr → acorda ~$wakeStr (média das noites recentes)'
+        : 'Sleeps ~$bedStr → wakes ~$wakeStr (recent nights average)';
+  }
+
   Future<void> refreshSleepWindowPredictions({bool force = false}) async {
-    if (!force && _sleepWindowPredictions != null) return;
+    if (babyProfile?.useAiSuggestions == false) {
+      _sleepWindowPredictions = '';
+      notifyListeners();
+      return;
+    }
+    // null == currently loading; a non-empty string == we already have a
+    // result. A non-forced call still fetches when the value is an empty
+    // string so the tab auto-populates the first time it's opened.
+    if (_sleepWindowPredictions == null) return;
+    if (!force && _sleepWindowPredictions!.isNotEmpty) return;
     
     // Set to null to show loading state
     _sleepWindowPredictions = null;

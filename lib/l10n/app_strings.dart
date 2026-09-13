@@ -124,6 +124,30 @@ class AppStrings {
   static const String authGenericError =
       'Could not authenticate. Please try again.';
   static const String authFooterHint = 'Use email and password to continue.';
+
+  // Account linking (settings)
+  static const String settingsLinkGoogleTitle = 'Link Google account';
+  static const String settingsLinkGoogleSubtitle =
+      'Also sign in using your Google account';
+  static const String settingsAddEmailPasswordTitle =
+      'Add email & password login';
+  static const String settingsAddEmailPasswordSubtitle =
+      'Create a password to also sign in without Google';
+  static const String linkEmailScreenTitle = 'Add email and password';
+  static const String passwordStrengthHint =
+      'At least 6 characters, with an uppercase letter, a number and a special character.';
+  static const String passwordWeak =
+      'Password must have an uppercase letter, a number and a special character.';
+  static const String linkGoogleSuccess =
+      'Google account linked successfully!';
+  static const String linkEmailSuccess =
+      'Email login added! You can now sign in with either method.';
+  static const String linkErrorEmailInUse =
+      'This account is already linked to another user.';
+  static const String linkErrorRequiresRecentLogin =
+      'For security, please sign in again before linking accounts.';
+  static const String linkErrorGeneric =
+      'Could not link the account. Please try again.';
 }
 
 class AppStringsPortuguese {
@@ -251,4 +275,28 @@ class AppStringsPortuguese {
   static const String authGenericError =
       'Não foi possível autenticar. Tente novamente.';
   static const String authFooterHint = 'Use e-mail e senha para acessar.';
+
+  // Account linking (settings)
+  static const String settingsLinkGoogleTitle = 'Vincular conta Google';
+  static const String settingsLinkGoogleSubtitle =
+      'Acesse também com sua conta Google';
+  static const String settingsAddEmailPasswordTitle =
+      'Adicionar login com e-mail e senha';
+  static const String settingsAddEmailPasswordSubtitle =
+      'Crie uma senha para acessar também sem o Google';
+  static const String linkEmailScreenTitle = 'Adicionar e-mail e senha';
+  static const String passwordStrengthHint =
+      'Mínimo de 6 caracteres, com letra maiúscula, número e caractere especial.';
+  static const String passwordWeak =
+      'A senha deve ter letra maiúscula, número e caractere especial.';
+  static const String linkGoogleSuccess =
+      'Conta Google vinculada com sucesso!';
+  static const String linkEmailSuccess =
+      'Login por e-mail adicionado! Agora você pode entrar com qualquer um dos métodos.';
+  static const String linkErrorEmailInUse =
+      'Esta conta já está vinculada a outro usuário.';
+  static const String linkErrorRequiresRecentLogin =
+      'Por segurança, faça login novamente antes de vincular contas.';
+  static const String linkErrorGeneric =
+      'Não foi possível vincular a conta. Tente novamente.';
 }
