@@ -111,6 +111,22 @@ class AppProvider with ChangeNotifier {
     return true;
   }
 
+  /// Next-nap forecast (HH:mm) to show as a banner while Dante is napping
+  /// during the day; null when the banner should be hidden.
+  String? get napForecastBanner {
+    if (!isDay || entries.isEmpty) return null;
+    final latest = entries.first;
+    if (!latest.isDay || latest.slept == null || latest.wokeUp != null) {
+      return null;
+    }
+    final ai = aiSuggestion;
+    if (ai == null || ai.isLoading || ai.error != null) return null;
+    final raw = ai.nextNapTime;
+    if (raw == null) return null;
+    final match = RegExp(r'\d{1,2}:\d{2}').firstMatch(raw);
+    return match?.group(0);
+  }
+
   bool isDay = true;
   bool is24Hour = true;
   bool isTableView = false;

@@ -213,6 +213,45 @@ class MainScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              if (provider.napForecastBanner != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    color: isVisualDay
+                        ? const Color(0xFFEAF1FF)
+                        : const Color(0xFF2A1A42),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.bedtime_outlined,
+                        size: 20,
+                        color: isVisualDay
+                            ? const Color(0xFF2A6CE8)
+                            : const Color(0xFFEADFFF),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        provider.locale.languageCode == 'pt'
+                            ? 'Previsão de dormir: ${provider.napForecastBanner}'
+                            : 'Expected sleep: ${provider.napForecastBanner}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isVisualDay
+                              ? const Color(0xFF1B3A7A)
+                              : const Color(0xFFEADFFF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Expanded(
                 // Table view branch temporarily disabled. Keep card view only.
                 // child: provider.isTableView

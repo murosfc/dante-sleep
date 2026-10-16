@@ -502,7 +502,7 @@ CONTEXTO ATUAL:
 $currentContext
 
 Determine:
-1. Se o bebê ESTIVER DORMINDO AGORA: calcule a hora que ele deve ACORDAR. Analise o histórico recente para descobrir a duração média das sonecas/sonos NESSE MESMO HORÁRIO. Use a duração típica da soneca ($napDurationStr) como fallback caso não haja dados suficientes no histórico.
+1. Se o bebê ESTIVER DORMINDO AGORA: calcule a hora que ele deve ACORDAR. Analise o histórico recente para descobrir a duração média das sonecas/sonos NESSE MESMO HORÁRIO. Use a duração típica da soneca ($napDurationStr) como fallback caso não haja dados suficientes no histórico. Se for uma soneca diurna, preencha TAMBÉM nextNapTime com o horário da PRÓXIMA soneca (hora prevista de acordar + janela de vigília $wakeWindowStr), seguindo as regras 3 e 4.
 2. Se o bebê estiver ACORDADO e for período diurno: horário ideal da PRÓXIMA SONECA, usando a janela de vigília deste bebê ($wakeWindowStr). Sugira o intervalo correspondente (ex: HH:mm - HH:mm).
 3. Conflito Soneca vs Rotina: Se for fim da tarde e a próxima soneca for colidir com a rotina noturna ($routineStartExact) ou terminar a menos de 45 min dela, NÃO sugira uma soneca normal. Você deve decidir entre: a) Sugerir uma "soneca ponte" curta (30-40 min); b) Pular a soneca (deixando nextNapTime null) e sugerir antecipar o início da rotina noturna em bedtimeRoutineStart.
 4. Soneca ponte NUNCA deve ser sugerida de manhã.
@@ -540,7 +540,7 @@ CURRENT CONTEXT:
 $currentContext
 
 Determine:
-1. If the baby IS CURRENTLY SLEEPING: calculate the expected WAKE UP time. Analyze the recent history to find the average duration of sleep/naps AT THIS SAME TIME. Use the typical nap duration ($napDurationStr) as a fallback if there is not enough historical data.
+1. If the baby IS CURRENTLY SLEEPING: calculate the expected WAKE UP time. Analyze the recent history to find the average duration of sleep/naps AT THIS SAME TIME. Use the typical nap duration ($napDurationStr) as a fallback if there is not enough historical data. If it is a daytime nap, ALSO fill nextNapTime with the time of the NEXT nap (expected wake-up time + wake window $wakeWindowStr), following rules 3 and 4.
 2. If the baby is AWAKE and it's DAYTIME: ideal time for the NEXT NAP, using this baby's wake window ($wakeWindowStr). Suggest the range (e.g., HH:mm - HH:mm).
 3. Nap vs Routine Conflict: If it is late afternoon and the next nap will collide with the night routine ($routineStartExact) or end less than 45 mins before it, DO NOT suggest a normal nap. You must decide between: a) Suggesting a short "bridge nap" (30-40 min); b) Skipping the nap (leaving nextNapTime null) and suggesting an earlier bedtimeRoutineStart.
 4. Never suggest a bridge nap in the morning.
