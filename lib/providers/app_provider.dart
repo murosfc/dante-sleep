@@ -156,6 +156,29 @@ class AppProvider with ChangeNotifier {
     await _loadSyncQueue();
 
     if (user != null) {
+      // If we have a local cache of entries/baby profile from a previous
+      // session, show it immediately (so the app isn't blocked behind a
+      // full Firestore round-trip on every cold start, which gets slower
+      // as the entries history grows) and refresh from Firestore in the
+      // background.
+      final cachedEntries = await _loadEntriesCache(user.uid);
+      if (cachedEntries != null) {
+        entries = cachedEntries;
+        babyProfile = await _loadBabyProfileCache(user.uid);
+        is24Hour = prefs.getBool('is24Hour$uidKey') ?? true;
+        String lang =
+            prefs.getString('language$uidKey') ??
+            _storedLanguageFromLocale(_systemDefaultLocale());
+        visualThemeMode = prefs.getString('visualThemeMode$uidKey') ?? 'auto';
+        locale = _localeFromStoredLanguage(lang);
+        _loadedUserId = user.uid;
+        babyProfileLoaded = true;
+        notifyListeners();
+        _updateWidget();
+        unawaited(loadSettingsFromCurrentUser());
+        return;
+      }
+
       // Load settings + entries + baby profile from Firestore
       try {
         await loadSettingsFromCurrentUser();
@@ -193,6 +216,20 @@ class AppProvider with ChangeNotifier {
       userDisplayName = null;
       aiSuggestion = null;
       _aiSuggestionsRead = false;
+
+      // Show cached data instantly (if any) while fresh data loads in the
+      // background, instead of blocking on a full Firestore fetch.
+      final cachedEntries = await _loadEntriesCache(user.uid);
+      if (cachedEntries != null) {
+        entries = cachedEntries;
+        babyProfile = await _loadBabyProfileCache(user.uid);
+        _loadedUserId = user.uid;
+        babyProfileLoaded = true;
+        _isLoadingAuthUserData = false;
+        notifyListeners();
+        unawaited(loadSettingsFromCurrentUser());
+        return;
+      }
     }
 
     babyProfileLoaded = false;
@@ -262,6 +299,7 @@ class AppProvider with ChangeNotifier {
       });
       entries = loaded;
       _sleepWindowPredictions = '';
+      unawaited(_saveEntriesCache(user.uid, loaded));
 
       // 3. Baby profile
       final babyData = await FirebaseService().getBabyData(user.uid);
@@ -275,6 +313,7 @@ class AppProvider with ChangeNotifier {
       } else {
         babyProfile = null;
       }
+      unawaited(_saveBabyProfileCache(user.uid, babyProfile));
       _loadedUserId = user.uid;
       babyProfileLoaded = true;
 
@@ -1523,6 +1562,72 @@ class AppProvider with ChangeNotifier {
       await prefs.setString('sync_queue$uidKey', queueJson);
     } catch (e) {
       debugPrint('Error saving sync queue: $e');
+    }
+  }
+
+  // ─── Local read cache (entries + baby profile) ────────────────────────────
+  // Firestore remains the source of truth, but on every cold start we'd
+  // otherwise have to wait for the full entries history to download before
+  // showing anything — this gets slower the more records a baby accumulates.
+  // Caching the last-known data locally lets the UI render instantly from
+  // disk while a fresh copy is fetched from Firestore in the background.
+
+  Future<void> _saveEntriesCache(String uid, List<SleepEntry> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = jsonEncode(
+        list
+            .map((e) => {'firestoreId': e.firestoreId, ...e.toJson()})
+            .toList(),
+      );
+      await prefs.setString('entries_cache_$uid', json);
+    } catch (e) {
+      debugPrint('Error saving entries cache: $e');
+    }
+  }
+
+  Future<List<SleepEntry>?> _loadEntriesCache(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString('entries_cache_$uid');
+      if (json == null) return null;
+      final List<dynamic> list = jsonDecode(json);
+      return list
+          .map((e) => SleepEntry.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      debugPrint('Error loading entries cache: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveBabyProfileCache(String uid, BabyProfile? profile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (profile == null) {
+        await prefs.remove('baby_profile_cache_$uid');
+        return;
+      }
+      await prefs.setString(
+        'baby_profile_cache_$uid',
+        jsonEncode(profile.toFirestore()),
+      );
+    } catch (e) {
+      debugPrint('Error saving baby profile cache: $e');
+    }
+  }
+
+  Future<BabyProfile?> _loadBabyProfileCache(String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final json = prefs.getString('baby_profile_cache_$uid');
+      if (json == null) return null;
+      return BabyProfile.fromFirestore(
+        Map<String, dynamic>.from(jsonDecode(json)),
+      );
+    } catch (e) {
+      debugPrint('Error loading baby profile cache: $e');
+      return null;
     }
   }
 
