@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.SystemClock
 import android.widget.RemoteViews
+import android.view.View
 import es.antonborri.home_widget.HomeWidgetProvider
 
 class DanteSleepWidgetProvider : HomeWidgetProvider() {
@@ -35,6 +36,8 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
             }
 
             val isLightTheme = widgetData.getBoolean("is_light_theme", true)
+            val forecastLabel = widgetData.getString("forecast_label", "") ?: ""
+            val forecastTime = widgetData.getString("forecast_time", "") ?: ""
 
             // Apply styling and assets based on theme and state
             if (isLightTheme) {
@@ -42,6 +45,8 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
                 views.setTextColor(R.id.widget_status_label, 0x9012233F.toInt())
                 views.setTextColor(R.id.widget_duration_prefix, 0xFF12233F.toInt())
                 views.setTextColor(R.id.widget_chronometer, 0xFF12233F.toInt())
+                views.setTextColor(R.id.widget_forecast_label, 0x9012233F.toInt())
+                views.setTextColor(R.id.widget_forecast_time, 0xFF2A6CE8.toInt())
 
                 if (isSleeping) {
                     views.setImageViewResource(R.id.widget_icon, R.drawable.ic_moon)
@@ -55,6 +60,8 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
                 views.setTextColor(R.id.widget_status_label, 0xB0EADFFF.toInt())
                 views.setTextColor(R.id.widget_duration_prefix, 0xFFEADFFF.toInt())
                 views.setTextColor(R.id.widget_chronometer, 0xFFEADFFF.toInt())
+                views.setTextColor(R.id.widget_forecast_label, 0xB0EADFFF.toInt())
+                views.setTextColor(R.id.widget_forecast_time, 0xFFDABBF8.toInt())
 
                 if (isSleeping) {
                     views.setImageViewResource(R.id.widget_icon, R.drawable.ic_moon)
@@ -68,6 +75,12 @@ class DanteSleepWidgetProvider : HomeWidgetProvider() {
             // Update texts
             views.setTextViewText(R.id.widget_status_label, statusLabel)
             views.setTextViewText(R.id.widget_duration_prefix, durationPrefix)
+            views.setTextViewText(R.id.widget_forecast_label, forecastLabel)
+            views.setTextViewText(R.id.widget_forecast_time, forecastTime)
+            views.setViewVisibility(
+                R.id.widget_forecast_container,
+                if (forecastTime.isEmpty()) View.GONE else View.VISIBLE
+            )
 
             // Configure Chronometer
             if (stateStartTime > 0L) {

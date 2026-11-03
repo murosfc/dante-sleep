@@ -50,18 +50,26 @@ class AppProvider with ChangeNotifier {
 
   void _scheduleAiRefresh() {
     _aiRefreshTimer?.cancel();
+    // The manual plan is local and cheap: recompute right away.
+    if (babyProfile?.useAiSuggestions == false) {
+      refreshAiSuggestions();
+      return;
+    }
     _aiRefreshTimer = Timer(const Duration(seconds: 30), () {
       refreshAiSuggestions();
     });
   }
 
   void _updateWidget() {
+    final action = nextAction;
     WidgetService.updateHomeScreenWidget(
       entries: entries,
       locale: locale,
       is24Hour: is24Hour,
       babyName: babyProfile?.name,
       isLightTheme: isVisualDay,
+      forecastLabel: action?.short,
+      forecastTime: action?.time,
     );
   }
 
@@ -111,20 +119,83 @@ class AppProvider with ChangeNotifier {
     return true;
   }
 
-  /// Next-nap forecast (HH:mm) to show as a banner while Dante is napping
-  /// during the day; null when the banner should be hidden.
-  String? get napForecastBanner {
-    if (!isDay || entries.isEmpty) return null;
-    final latest = entries.first;
-    if (!latest.isDay || latest.slept == null || latest.wokeUp != null) {
-      return null;
+  /// The next expected event and its time (HH:mm), shown as a banner on the
+  /// main screen and on the home-screen widget. Null when there's nothing to
+  /// forecast. [short] is a compact label for the home-screen widget.
+  ///
+  /// - Night sleep in progress → morning wake-up from previous nights.
+  /// - Manual plan, napping → when the current nap should end.
+  /// - Manual plan, awake → when the next nap (or the night routine) starts.
+  /// - AI plan → the AI's next nap, or its night routine start.
+  ({String label, String short, String time})? get nextAction {
+    final profile = babyProfile;
+    if (profile == null || entries.isEmpty) return null;
+    final isPt = locale.languageCode == 'pt';
+
+    if (_isNightContext()) {
+      return (
+        label: isPt ? 'Previsão de acordar:' : 'Expected wake-up:',
+        short: isPt ? 'Acordar ~' : 'Wake ~',
+        time: _formatHm(_nightWakeEstimate(profile).wake),
+      );
     }
+
+    if (!profile.useAiSuggestions) {
+      final anchor = _resolveManualAnchor();
+      final schedule = _computeManualSchedule(profile, anchor);
+      if (anchor.asleep) {
+        final current = schedule.naps.isNotEmpty &&
+                schedule.naps.first.start == anchor.time
+            ? schedule.naps.first
+            : null;
+        if (current != null) {
+          return (
+            label: isPt ? 'Deve acordar por volta de' : 'Should wake up around',
+            short: isPt ? 'Acordar ~' : 'Wake ~',
+            time: _formatHm(current.end),
+          );
+        }
+        return null;
+      }
+      final next = schedule.naps.isNotEmpty ? schedule.naps.first : null;
+      if (next != null) {
+        return (
+          label: isPt ? 'Deve dormir por volta de' : 'Should nap around',
+          short: isPt ? 'Dormir ~' : 'Nap ~',
+          time: _formatHm(next.start),
+        );
+      }
+      return (
+        label: isPt ? 'Rotina noturna por volta de' : 'Night routine around',
+        short: isPt ? 'Rotina ~' : 'Routine ~',
+        time: _formatHm(schedule.nightRoutineStart),
+      );
+    }
+
     final ai = aiSuggestion;
     if (ai == null || ai.isLoading || ai.error != null) return null;
-    final raw = ai.nextNapTime;
+    final napTime = _extractHm(ai.nextNapTime);
+    if (napTime != null) {
+      return (
+        label: isPt ? 'Próxima soneca:' : 'Next nap:',
+        short: isPt ? 'Soneca ~' : 'Nap ~',
+        time: napTime,
+      );
+    }
+    final routine = _extractHm(ai.bedtimeRoutineStart);
+    if (routine != null) {
+      return (
+        label: isPt ? 'Rotina noturna:' : 'Night routine:',
+        short: isPt ? 'Rotina ~' : 'Routine ~',
+        time: routine,
+      );
+    }
+    return null;
+  }
+
+  String? _extractHm(String? raw) {
     if (raw == null) return null;
-    final match = RegExp(r'\d{1,2}:\d{2}').firstMatch(raw);
-    return match?.group(0);
+    return RegExp(r'\d{1,2}:\d{2}').firstMatch(raw)?.group(0);
   }
 
   bool isDay = true;
@@ -167,6 +238,11 @@ class AppProvider with ChangeNotifier {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final user = FirebaseService().currentUser;
     final uidKey = user != null ? '_${user.uid}' : '';
+
+    // Start in the right period on cold start (incl. 00:00–06:00, which the
+    // auto day/night check doesn't touch).
+    final startHour = DateTime.now().hour;
+    isDay = startHour >= 6 && startHour < 18;
 
     // Load only sync queue locally (entries come from Firestore)
     await _loadSyncQueue();
@@ -423,6 +499,7 @@ class AppProvider with ChangeNotifier {
         generatedAt: DateTime.now(),
       );
       notifyListeners();
+      _updateWidget();
 
       try {
         await NotificationService.scheduleAiSuggestions(
@@ -457,6 +534,7 @@ class AppProvider with ChangeNotifier {
     }
     aiSuggestion = _removeMorningBridgeNap(aiSuggestion);
     notifyListeners();
+    _updateWidget();
 
     // Schedule local notifications for the suggested times
     if (aiSuggestion != null && aiSuggestion!.error == null) {
@@ -554,6 +632,7 @@ class AppProvider with ChangeNotifier {
         generatedAt: DateTime.now(),
       );
       notifyListeners();
+      _updateWidget();
       try {
         await NotificationService.scheduleAiSuggestions(
           napTime: null,
@@ -574,16 +653,14 @@ class AppProvider with ChangeNotifier {
     }
 
     final anchor = _resolveManualAnchor();
-    final schedule = ManualSleepPlan.compute(
-      anchorTime: anchor.time,
-      anchorIsAsleep: anchor.asleep,
-      completedNaps: anchor.completedNaps,
-      wakeWindowsMinutes: profile.resolvedManualWakeWindowsMinutes,
-      napDurationsMinutes: profile.resolvedManualNapDurationsMinutes,
-    );
+    final schedule = _computeManualSchedule(profile, anchor);
 
     final now = DateTime.now();
-    final nextNap = schedule.nextNap(now);
+    // Next nap not started yet. Not filtered by "now": an overdue nap is
+    // still the next one until it's actually logged.
+    final nextNap = schedule.naps
+        .where((n) => !(anchor.asleep && n.start == anchor.time))
+        .firstOrNull;
     final totalNaps = profile.manualNapsPerDay;
     final napNumber = nextNap != null ? nextNap.index + 1 : null;
 
@@ -601,6 +678,7 @@ class AppProvider with ChangeNotifier {
       generatedAt: DateTime.now(),
     );
     notifyListeners();
+    _updateWidget();
 
     try {
       await NotificationService.scheduleManualPlan(
@@ -618,6 +696,19 @@ class AppProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('NotificationService error: $e');
     }
+  }
+
+  ManualDaySchedule _computeManualSchedule(
+    BabyProfile profile,
+    ({DateTime time, bool asleep, int completedNaps}) anchor,
+  ) {
+    return ManualSleepPlan.compute(
+      anchorTime: anchor.time,
+      anchorIsAsleep: anchor.asleep,
+      completedNaps: anchor.completedNaps,
+      wakeWindowsMinutes: profile.resolvedManualWakeWindowsMinutes,
+      napDurationsMinutes: profile.resolvedManualNapDurationsMinutes,
+    );
   }
 
   /// Resolves where "now" sits in the manual plan from the logged entries:
@@ -698,15 +789,44 @@ class AppProvider with ChangeNotifier {
     return (values.reduce((a, b) => a + b) / values.length).round();
   }
 
-  /// Recent completed night entries (newest first), capped so old data doesn't
-  /// dominate the averages.
-  List<SleepEntry> _recentNights({int limit = 14}) {
-    final nights = <SleepEntry>[];
-    for (final e in entries) {
-      if (!e.isDay && e.slept != null && e.wokeUp != null) {
-        nights.add(e);
-        if (nights.length >= limit) break;
+  /// Nights as blocks of consecutive night cards (newest first). A night may
+  /// have several cards (night wakings): it starts at the *first* night card's
+  /// sleep and ends at the *last* night card's wake-up (the morning wake).
+  /// [end] is null while the last card is still asleep.
+  List<({DateTime start, DateTime? end})> _nightBlocks() {
+    final blocks = <({DateTime start, DateTime? end})>[];
+    var i = 0;
+    while (i < entries.length) {
+      if (entries[i].isDay) {
+        i++;
+        continue;
       }
+      final newest = entries[i];
+      var oldest = newest;
+      while (i < entries.length && !entries[i].isDay) {
+        oldest = entries[i];
+        i++;
+      }
+      final start = oldest.slept ?? newest.slept;
+      if (start != null) blocks.add((start: start, end: newest.wokeUp));
+    }
+    return blocks;
+  }
+
+  /// Recent completed nights (newest first), capped so old data doesn't
+  /// dominate the averages. The night at the top of the list is skipped while
+  /// it's the latest record, since it may still be in progress.
+  List<({DateTime start, DateTime end})> _recentNights({int limit = 14}) {
+    var blocks = _nightBlocks();
+    if (entries.isNotEmpty && !entries.first.isDay && blocks.isNotEmpty) {
+      blocks = blocks.sublist(1);
+    }
+    final nights = <({DateTime start, DateTime end})>[];
+    for (final b in blocks) {
+      final end = b.end;
+      if (end == null || !end.isAfter(b.start)) continue;
+      nights.add((start: b.start, end: end));
+      if (nights.length >= limit) break;
     }
     return nights;
   }
@@ -721,7 +841,7 @@ class AppProvider with ChangeNotifier {
 
     final nights = _recentNights();
     final wakeMinutes =
-        _averageMinuteOfDay(nights.map((e) => e.wokeUp)) ?? 6 * 60;
+        _averageMinuteOfDay(nights.map((e) => e.end)) ?? 6 * 60;
     final now = DateTime.now();
     final wake = DateTime(
       now.year,
@@ -787,8 +907,8 @@ class AppProvider with ChangeNotifier {
   String? manualNightAverageLine({required bool isPt}) {
     final nights = _recentNights();
     if (nights.length < 2) return null;
-    final bed = _averageMinuteOfDay(nights.map((e) => e.slept));
-    final wake = _averageMinuteOfDay(nights.map((e) => e.wokeUp));
+    final bed = _averageMinuteOfDay(nights.map((e) => e.start));
+    final wake = _averageMinuteOfDay(nights.map((e) => e.end));
     if (bed == null || wake == null) return null;
     final bedStr = _formatMinutesOfDay(bed);
     final wakeStr = _formatMinutesOfDay(wake);
@@ -838,10 +958,16 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Night = the latest record is a night card and the baby is either still
+  /// asleep, or briefly awake while the period is still set to night (a night
+  /// waking). Once the period flips to day, the last night card's wake-up is
+  /// the morning wake and the day plan takes over.
   bool _isNightContext() {
-    if (!isDay) return true;
     if (entries.isEmpty) return false;
-    return entries.first.isDay == false;
+    final latest = entries.first;
+    if (latest.isDay) return false;
+    final asleep = latest.slept != null && latest.wokeUp == null;
+    return asleep || !isDay;
   }
 
   AiSuggestion? _removeMorningBridgeNap(AiSuggestion? suggestion) {
@@ -871,61 +997,56 @@ class AppProvider with ChangeNotifier {
     BabyProfile profile, {
     required bool isPt,
   }) {
-    final firstNightSleep = _findCurrentNightStart();
-    if (firstNightSleep == null) {
-      final fallback = _fallbackNightDuration(profile);
-      final wake = DateTime.now().add(fallback);
+    final estimate = _nightWakeEstimate(profile);
+    final wake = _formatHm(estimate.wake);
+    if (estimate.fromHistory) {
       return (
-        time: _formatHm(wake),
+        time: wake,
         rationale: isPt
-            ? 'Previsão baseada na duração noturna esperada para a idade (${fallback.inHours}h).'
-            : 'Forecast based on expected night sleep duration for age (${fallback.inHours}h).',
+            ? 'Previsão de acordar às $wake usando a média das noites anteriores.'
+            : 'Forecast wake-up at $wake using the average of previous nights.',
       );
     }
-
-    final avgDuration = _averageCompletedNightDuration();
-    final baseline = avgDuration ?? _fallbackNightDuration(profile);
-    final wake = firstNightSleep.add(baseline);
-
-    final sourceText = avgDuration != null
-        ? (isPt ? 'média das noites anteriores' : 'average of previous nights')
-        : (isPt ? 'referência por idade' : 'age fallback');
-
     return (
-      time: _formatHm(wake),
+      time: wake,
       rationale: isPt
-          ? 'Previsão de acordar às ${_formatHm(wake)} usando $sourceText.'
-          : 'Forecast wake-up at ${_formatHm(wake)} using $sourceText.',
+          ? 'Previsão baseada na duração noturna esperada para a idade (${estimate.duration.inHours}h).'
+          : 'Forecast based on expected night sleep duration for age (${estimate.duration.inHours}h).',
     );
   }
 
+  /// Morning wake-up estimate: tonight's sleep onset (first night card) plus
+  /// the average length of previous nights, or the age reference when there's
+  /// no history yet.
+  ({DateTime wake, Duration duration, bool fromHistory}) _nightWakeEstimate(
+    BabyProfile profile,
+  ) {
+    final avgDuration = _averageCompletedNightDuration();
+    final duration = avgDuration ?? _fallbackNightDuration(profile);
+    final start = _findCurrentNightStart() ?? DateTime.now();
+    return (
+      wake: start.add(duration),
+      duration: duration,
+      fromHistory: avgDuration != null,
+    );
+  }
+
+  /// Sleep onset of the current night: the *first* night card of the block at
+  /// the top of the list (later night cards are night wakings).
   DateTime? _findCurrentNightStart() {
-    for (final entry in entries) {
-      if (!entry.isDay && entry.slept != null) {
-        return entry.slept;
-      }
-      if (entry.isDay) {
-        break;
-      }
-    }
-    return null;
+    if (entries.isEmpty || entries.first.isDay) return null;
+    final blocks = _nightBlocks();
+    return blocks.isEmpty ? null : blocks.first.start;
   }
 
   Duration? _averageCompletedNightDuration() {
-    final durations = <Duration>[];
-    for (final entry in entries) {
-      if (!entry.isDay && entry.slept != null && entry.wokeUp != null) {
-        final diff = entry.wokeUp!.difference(entry.slept!);
-        if (!diff.isNegative) {
-          durations.add(diff);
-        }
-      }
-      if (durations.length >= 14) break;
-    }
-
-    if (durations.isEmpty) return null;
-    final totalMinutes = durations.fold<int>(0, (sum, d) => sum + d.inMinutes);
-    return Duration(minutes: (totalMinutes / durations.length).round());
+    final nights = _recentNights();
+    if (nights.isEmpty) return null;
+    final totalMinutes = nights.fold<int>(
+      0,
+      (sum, n) => sum + n.end.difference(n.start).inMinutes,
+    );
+    return Duration(minutes: (totalMinutes / nights.length).round());
   }
 
   Duration _fallbackNightDuration(BabyProfile profile) {
@@ -999,7 +1120,7 @@ class AppProvider with ChangeNotifier {
       SleepEntry entry = SleepEntry(
         slept: DateTime.now(),
         isDay: isDay,
-        bottle: isDay,
+        bottle: true,
         syncStatus: 'pending',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

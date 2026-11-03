@@ -213,7 +213,7 @@ class MainScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              if (provider.napForecastBanner != null)
+              if (provider.nextAction != null)
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
@@ -237,16 +237,16 @@ class MainScreen extends StatelessWidget {
                             : const Color(0xFFEADFFF),
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        provider.locale.languageCode == 'pt'
-                            ? 'Previsão de dormir: ${provider.napForecastBanner}'
-                            : 'Expected sleep: ${provider.napForecastBanner}',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: isVisualDay
-                              ? const Color(0xFF1B3A7A)
-                              : const Color(0xFFEADFFF),
+                      Flexible(
+                        child: Text(
+                          '${provider.nextAction!.label} ${provider.nextAction!.time}',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: isVisualDay
+                                ? const Color(0xFF1B3A7A)
+                                : const Color(0xFFEADFFF),
+                          ),
                         ),
                       ),
                     ],
@@ -1102,7 +1102,7 @@ class _AiSuggestionsBottomSheet extends StatelessWidget {
               child: Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.4),
+                  color: Colors.grey.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

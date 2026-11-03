@@ -56,4 +56,31 @@
         </LinearLayout>
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/widget_forecast_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="end"
+        android:layout_marginStart="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widget_forecast_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:textColor="#2A6CE8" />
+
+        <TextView
+            android:id="@+id/widget_forecast_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:textColor="#2A6CE8" />
+    </LinearLayout>
+
 </LinearLayout>

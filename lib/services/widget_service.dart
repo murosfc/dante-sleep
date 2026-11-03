@@ -12,6 +12,8 @@ class WidgetService {
     required bool is24Hour,
     String? babyName,
     required bool isLightTheme,
+    String? forecastLabel,
+    String? forecastTime,
   }) async {
     try {
       final isPt = locale.languageCode == 'pt';
@@ -24,24 +26,20 @@ class WidgetService {
         final pattern = is24Hour ? 'HH:mm' : 'h:mm a';
         final localeStr = isPt ? 'pt_BR' : 'en';
         await initializeDateFormatting(localeStr, null);
-        
-        final subject = babyName != null && babyName.trim().isNotEmpty 
-            ? babyName.trim() 
-            : (isPt ? 'O bebê' : 'Baby');
 
         if (latest.slept != null && latest.wokeUp == null) {
           // Sleeping
           isSleeping = true;
           stateStartTime = latest.slept!.millisecondsSinceEpoch;
           final formattedTime = DateFormat(pattern, localeStr).format(latest.slept!);
-          statusLabel = isPt ? '$subject está dormindo desde as $formattedTime' : '$subject is sleeping since $formattedTime';
+          statusLabel = isPt ? 'Dormindo desde $formattedTime' : 'Asleep since $formattedTime';
         } else {
           // Awake
           isSleeping = false;
           final awakeStart = latest.wokeUp ?? latest.updatedAt ?? DateTime.now();
           stateStartTime = awakeStart.millisecondsSinceEpoch;
           final formattedTime = DateFormat(pattern, localeStr).format(awakeStart);
-          statusLabel = isPt ? '$subject está acordado desde as $formattedTime' : '$subject is awake since $formattedTime';
+          statusLabel = isPt ? 'Acordado desde $formattedTime' : 'Awake since $formattedTime';
         }
       }
 
@@ -52,6 +50,8 @@ class WidgetService {
       await HomeWidget.saveWidgetData<String>('duration_prefix', durationPrefix);
       await HomeWidget.saveWidgetData<String>('state_start_time', stateStartTime.toString());
       await HomeWidget.saveWidgetData<bool>('is_light_theme', isLightTheme);
+      await HomeWidget.saveWidgetData<String>('forecast_label', forecastLabel ?? '');
+      await HomeWidget.saveWidgetData<String>('forecast_time', forecastTime ?? '');
 
       await HomeWidget.updateWidget(
         androidName: 'DanteSleepWidgetProvider',

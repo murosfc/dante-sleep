@@ -653,7 +653,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.5),
+                  color: Colors.grey.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -737,7 +737,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                 ),
 
               const SizedBox(height: 24),
-              Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+              Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
 
               // Account linking (email <-> Google)
               if (_hasPasswordProvider && !_hasGoogleProvider) ...[
@@ -767,7 +767,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                       ? null
                       : () => _linkGoogleAccount(strings),
                 ),
-                Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+                Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
               ] else if (_hasGoogleProvider && !_hasPasswordProvider) ...[
                 ListTile(
                   leading: Icon(Icons.password, color: textColor),
@@ -786,7 +786,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                   ),
                   onTap: _openLinkEmailPasswordScreen,
                 ),
-                Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+                Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
               ],
 
               // Baby Profile
@@ -807,12 +807,12 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                 },
               ),
 
-              Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+              Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
 
               // AI suggestions toggle + manual sleep plan
               _buildAiSection(provider, isDay, textColor, bgColor),
 
-              Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+              Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
 
               // Import/Export CSV
               /*
@@ -852,7 +852,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                 },
               ),
               
-              Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+              Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
               
               // Language Select
               Padding(
@@ -975,7 +975,7 @@ class _SettingsBottomSheetState extends State<SettingsBottomSheet> {
                 ),
               ),
               
-              Divider(height: 1, color: Colors.grey.withOpacity(0.2)),
+              Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
               
               // Logout
               ListTile(
